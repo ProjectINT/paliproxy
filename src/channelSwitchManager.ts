@@ -190,7 +190,7 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
             const operation = this._activeOperations[index];
             this._activeOperations.splice(index, 1);
             
-            if (operation.onComplete) {
+            if (operation && operation.onComplete) {
                 try {
                     operation.onComplete();
                 } catch (error) {
@@ -219,7 +219,7 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
 
             const operation = this._activeOperations[index];
             
-            if (!operation.canInterrupt) {
+            if (!operation || !operation.canInterrupt) {
                 logger.warn(`Cannot interrupt operation ${operationId}: interruption not allowed`);
                 return false;
             }

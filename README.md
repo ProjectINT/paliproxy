@@ -5,18 +5,20 @@
 ## 🚀 Особенности
 
 - **Автоматическое управление VPN соединениями** - подключение к лучшему доступному серверу
-- **Мониторинг здоровья туннелей** - постоянная проверка доступности и качества соединения
+- **Мониторинг здоровья туннелей** - постоянная проверка доступности и качества соединения  
 - **Автоматическое переключение** - смена VPN при проблемах с текущим соединением
 - **HTTP клиент с проксированием** - выполнение запросов через активный VPN туннель (используя нативный fetch API)
 - **Простой API** - единый класс с методом `request()` для выполнения HTTP запросов через VPN
-- **Гибкая конфигурация** - настройка через env файлы, аргументы командной строки или файлы конфигурации
+- **Буферизация запросов** - система очередей для обработки запросов с приоритетами
+- **Отложенное переключение каналов** - планирование переключений VPN с задержкой
+- **Гибкая конфигурация** - настройка через файлы конфигурации или прямая передача VPN конфигураций
 - **Подробное логирование** - отслеживание всех операций и ошибок
 - **TypeScript поддержка** - типизированные интерфейсы для разработки
 
 ## 💡 Быстрый старт
 
 ```typescript
-import PaliVPN from 'palivpn';
+import { PaliVPN } from './src/index';
 
 // Создаем экземпляр VPN клиента
 const vpnClient = new PaliVPN();
@@ -38,18 +40,31 @@ await vpnClient.stop();
 
 ```
 ├── src/
-│   ├── index.ts               # Точка входа: инициализация VPN клиента
-│   ├── manager.ts             # Логика подключения и переключения
-│   ├── config.ts              # Загрузка конфигов из env, файла или аргументов
-│   ├── healthChecker.ts       # Проверка доступности туннелей
-│   ├── requester.ts           # Проксирующий HTTP-запрос через активный VPN
-│   ├── utils.ts               # Вспомогательные функции
-│   └── types.ts               # TypeScript типы и интерфейсы
-├── example/
-│   └── example.ts             # Пример использования
+│   ├── index.ts               # Точка входа: главный класс PaliVPN
+│   ├── manager.ts             # VPNManager: логика подключения и переключения
+│   ├── config.ts              # Менеджер конфигурации: загрузка настроек
+│   ├── healthChecker.ts       # HealthChecker: проверка доступности туннелей
+│   ├── requester.ts           # VPNRequester: HTTP-клиент через активный VPN
+│   ├── requestBuffer.ts       # RequestBuffer: система очередей запросов
+│   ├── channelSwitchManager.ts # Менеджер отложенного переключения каналов
+│   ├── concurrency.ts         # Утилиты для работы с параллелизмом
+│   ├── utils.ts               # Вспомогательные функции и логгер
+│   ├── types.ts               # TypeScript типы и интерфейсы
+│   └── tests/                 # Тесты
+│       └── delayed-switching.test.ts
+├── example/                   # Примеры использования
+│   ├── example.ts             # Основной пример с демонстрацией возможностей
+│   ├── simple.ts              # Простой пример использования
+│   ├── usage.ts               # Различные варианты использования
+│   ├── serverless.ts          # Пример для serverless функций
+│   ├── buffering-demo.ts      # Демонстрация буферизации запросов
+│   ├── race-conditions-demo.ts # Демонстрация работы с race conditions
+│   └── delayed-switching-demo.ts # Демонстрация отложенного переключения
+├── configs/                   # VPN конфигурации
+│   ├── example_vpn.ovpn
+│   └── server2_vpn.ovpn
 ├── dist/                      # Скомпилированные JS файлы (создается при сборке)
-├── .env                       # Основной источник конфигов
-├── .gitignore
+├── config.json.example        # Пример файла конфигурации
 ├── package.json
 ├── tsconfig.json              # Конфигурация TypeScript
 └── README.md
@@ -80,41 +95,50 @@ cp .env.example .env
 
 ## ⚙️ Конфигурация
 
-### Переменные окружения (.env)
-
-```bash
-# Environment Configuration
-NODE_ENV=development
-
-# VPN Configuration
-VPN_CONFIGS_PATH=./configs
-DEFAULT_VPN_TIMEOUT=30000
-HEALTH_CHECK_INTERVAL=60000
-HEALTH_CHECK_URL=https://httpbin.org/ip
-
-# HTTP Configuration  
-HTTP_TIMEOUT=10000
-USER_AGENT=PaliVPN/1.0.0
-
-# Logging
-LOG_LEVEL=info
-```
-
-### Аргументы командной строки
-
-```bash
-npm start -- --config-path ./my-configs --timeout 45000 --log-level debug
-```
-
 ### Файл конфигурации (config.json)
 
 ```json
 {
   "vpnConfigsPath": "./configs",
   "defaultVpnTimeout": 30000,
+  "maxReconnectAttempts": 3,
   "healthCheckInterval": 60000,
-  "logLevel": "info"
+  "healthCheckUrl": "https://httpbin.org/ip",
+  "healthCheckTimeout": 10000,
+  "httpTimeout": 10000,
+  "userAgent": "PaliVPN/1.0.0",
+  "logLevel": "info",
+  "nodeEnv": "development"
 }
+```
+
+### Передача VPN конфигураций напрямую (для serverless)
+
+```typescript
+import { PaliVPN, VPNConfig } from './src/index';
+
+const vpnConfigs: VPNConfig[] = [
+    {
+        name: 'server1',
+        config: 'путь/к/server1.ovpn',
+        priority: 1,
+        active: false,
+        type: 'openvpn'
+    },
+    {
+        name: 'server2', 
+        config: 'путь/к/server2.ovpn',
+        priority: 2,
+        active: false,
+        type: 'openvpn'
+    }
+];
+
+// Создание с предопределенными VPN конфигурациями
+const vpnClient = PaliVPN.withVPNConfigs(vpnConfigs, {
+    logLevel: 'info',
+    healthCheckInterval: 30000
+});
 ```
 
 ## 🚀 Использование
@@ -179,29 +203,70 @@ npm run clean                # rm -rf dist
 
 **TypeScript/ES6:**
 ```typescript
-import { VPNManager } from './src/manager.js';
-import { VPNRequester } from './src/requester.js';
-import { loadConfig } from './src/config.js';
-import type { VPNConfig, VPNInfo } from './src/types.js';
+import { VPNManager, VPNRequester, configManager } from './src/index';
+import type { VPNConfig, AppConfig } from './src/types';
 
 async function main(): Promise<void> {
     // Загружаем конфигурацию
-    const vpnConfig: VPNConfig = await loadConfig();
+    const appConfig: AppConfig = configManager.get();
     
     // Создаем и запускаем VPN менеджер
-    const vpnManager = new VPNManager(vpnConfig);
+    const vpnManager = new VPNManager(appConfig);
     await vpnManager.initialize();
     await vpnManager.start();
     
     // Создаем HTTP клиент для запросов через VPN
-    const requester = new VPNRequester(vpnConfig, vpnManager);
+    const requester = new VPNRequester(appConfig, vpnManager);
     
     // Выполняем запросы
-    const ip = await requester.getCurrentIP();
+    const response = await requester.request({
+        url: 'https://httpbin.org/ip',
+        method: 'GET'
+    });
+    
+    const data = await response.json();
+    console.log('Current IP:', data.origin);
+    
+    // Проверяем связность
+    const connectivity = await requester.checkConnectivity();
+    console.log('Connectivity:', connectivity);
+}
+
+main().catch(console.error);
+```
+
+**Простое использование через главный класс:**
+```typescript
+import { PaliVPN } from './src/index';
+
+async function simpleExample(): Promise<void> {
+    const vpnClient = new PaliVPN();
+    
+    try {
+        await vpnClient.initialize();
+        
+        const response = await vpnClient.request({
+            url: 'https://httpbin.org/json',
+            method: 'GET'
+        });
+        
+        const data = await response.json();
+        console.log('Response:', data);
+        
+    } finally {
+        await vpnClient.stop();
+    }
+}
+```
     console.log('Current IP:', ip);
     
-    const response = await requester.get('https://httpbin.org/json');
-    console.log('Response:', response.data);
+    const response = await requester.request({
+        url: 'https://httpbin.org/json',
+        method: 'GET'
+    });
+    
+    const data = await response.json();
+    console.log('Response:', data);
 }
 
 main().catch(console.error);
@@ -209,28 +274,28 @@ main().catch(console.error);
 
 **CommonJS (для скомпилированной версии):**
 ```javascript
-const { VPNManager } = require('./dist/manager.js');
-const { VPNRequester } = require('./dist/requester.js');
-const { loadConfig } = require('./dist/config.js');
+const { VPNManager, VPNRequester, configManager } = require('./dist/index.js');
 
 async function main() {
     // Загружаем конфигурацию
-    const vpnConfig = await loadConfig();
+    const appConfig = configManager.get();
     
     // Создаем и запускаем VPN менеджер
-    const vpnManager = new VPNManager(vpnConfig);
+    const vpnManager = new VPNManager(appConfig);
     await vpnManager.initialize();
     await vpnManager.start();
     
     // Создаем HTTP клиент для запросов через VPN
-    const requester = new VPNRequester(vpnConfig, vpnManager);
+    const requester = new VPNRequester(appConfig, vpnManager);
     
     // Выполняем запросы
-    const ip = await requester.getCurrentIP();
-    console.log('Current IP:', ip);
+    const response = await requester.request({
+        url: 'https://httpbin.org/ip',
+        method: 'GET'
+    });
     
-    const response = await requester.get('https://httpbin.org/json');
-    console.log('Response:', response.data);
+    const data = await response.json();
+    console.log('Current IP:', data.origin);
 }
 
 main().catch(console.error);
@@ -238,11 +303,41 @@ main().catch(console.error);
 
 ## 📊 API
 
+### PaliVPN (главный класс)
+
+Основной класс для работы с VPN клиентом.
+
+```typescript
+import { PaliVPN } from './src/index';
+
+const client = new PaliVPN(config?, vpnConfigs?);
+
+// Инициализация
+await client.initialize();
+
+// Выполнение HTTP запроса
+const response = await client.request(requestConfig);
+
+// Получение состояния
+const isConnected = client.isConnected;
+const currentVPN = client.currentVPN;
+
+// Доступ к внутренним компонентам
+const manager = client.manager;
+const httpClient = client.httpClient;
+
+// Остановка
+await client.stop();
+
+// Статический метод для создания с VPN конфигурациями
+const client = PaliVPN.withVPNConfigs(vpnConfigs, config?);
+```
+
 ### VPNManager
 
-Основной класс для управления VPN соединениями.
+Менеджер VPN соединений.
 
-```javascript
+```typescript
 const manager = new VPNManager(config);
 
 // Инициализация
@@ -251,14 +346,14 @@ await manager.initialize();
 // Запуск
 await manager.start();
 
-// Подключение к конкретному VPN
+// Подключение к конкретному VPN (если реализовано)
 await manager.connect(vpn);
 
-// Переключение VPN
-await manager.switchVPN(targetVPN);
+// Получение текущего VPN
+const currentVPN = manager.currentVPN;
 
-// Получение статуса
-const status = manager.getStatus();
+// Получение статуса работы
+const isRunning = manager.isRunning;
 
 // Остановка
 await manager.stop();
@@ -268,31 +363,27 @@ await manager.stop();
 
 HTTP клиент для выполнения запросов через VPN.
 
-```javascript
+```typescript
 const requester = new VPNRequester(config, vpnManager);
 
-// HTTP методы
-const response = await requester.get(url);
-const response = await requester.post(url, data);
-const response = await requester.put(url, data);
-const response = await requester.delete(url);
+// Основной метод для HTTP запросов
+const response = await requester.request({
+    url: 'https://example.com',
+    method: 'GET',
+    headers: { 'Custom-Header': 'value' },
+    body: data // для POST/PUT запросов
+});
 
 // Утилиты
 const ip = await requester.getCurrentIP();
 const connectivity = await requester.checkConnectivity();
-
-// Batch запросы
-const results = await requester.batchRequests(requests, concurrency);
-
-// Запрос с автоматическим переключением VPN
-const response = await requester.requestWithVPNFallback(config);
 ```
 
 ### HealthChecker
 
 Мониторинг здоровья VPN соединений.
 
-```javascript
+```typescript
 const healthChecker = new HealthChecker(config);
 
 // Инициализация
@@ -304,52 +395,92 @@ healthChecker.start(vpnList);
 // Разовая проверка
 const result = await healthChecker.checkOnce(vpn);
 
-// События
-healthChecker.on('vpn:healthy', (vpn, status) => {
-    console.log(`VPN ${vpn.name} is healthy`);
-});
+// Остановка
+healthChecker.stop();
 
-healthChecker.on('vpn:unhealthy', (vpn, status) => {
-    console.log(`VPN ${vpn.name} is unhealthy: ${status.reason}`);
-});
+// События
+healthChecker.on('started', () => {});
+healthChecker.on('stopped', () => {});
+healthChecker.on('vpn:healthy', (vpn, status) => {});
+healthChecker.on('vpn:unhealthy', (vpn, status) => {});
 ```
 
 ## 🔧 События
 
 ### VPNManager Events
 
-```javascript
-vpnManager.on('started', () => {});
-vpnManager.on('stopped', () => {});
-vpnManager.on('connected', (vpn) => {});
-vpnManager.on('disconnected', (vpn) => {});
-vpnManager.on('switched', (vpn) => {});
+```typescript
+vpnManager.on('started', () => {
+    console.log('VPN Manager started');
+});
+
+vpnManager.on('stopped', () => {
+    console.log('VPN Manager stopped');
+});
+
+vpnManager.on('connected', (vpn: VPNConfig) => {
+    console.log(`Connected to VPN: ${vpn.name}`);
+});
+
+vpnManager.on('disconnected', (vpn: VPNConfig) => {
+    console.log(`Disconnected from VPN: ${vpn.name}`);
+});
+
+vpnManager.on('switched', (vpn: VPNConfig) => {
+    console.log(`Switched to VPN: ${vpn.name}`);
+});
+
+// Дополнительные события для отложенного переключения
+vpnManager.on('delayedSwitchScheduled', (switchRequest) => {
+    console.log(`Switch scheduled: ${switchRequest.targetVPN.name}`);
+});
+
+vpnManager.on('delayedSwitchCancelled', (switchId, reason) => {
+    console.log(`Switch cancelled: ${reason}`);
+});
 ```
 
 ### HealthChecker Events
 
-```javascript
-healthChecker.on('vpn:healthy', (vpn, status) => {});
-healthChecker.on('vpn:unhealthy', (vpn, status) => {});
+```typescript
+healthChecker.on('started', () => {
+    console.log('Health monitoring started');
+});
+
+healthChecker.on('stopped', () => {
+    console.log('Health monitoring stopped');
+});
+
+healthChecker.on('vpn:healthy', (vpn: VPNConfig, status: VPNHealthStatus) => {
+    console.log(`VPN ${vpn.name} is healthy`);
+});
+
+healthChecker.on('vpn:unhealthy', (vpn: VPNConfig, status: VPNHealthStatus) => {
+    console.log(`VPN ${vpn.name} is unhealthy: ${status.reason}`);
+});
 ```
 
 ## 🐛 Отладка
 
-Для включения подробного логирования:
+Для включения подробного логирования используйте конфигурацию:
 
-```bash
-# Через переменную окружения
-LOG_LEVEL=debug npm start
+```typescript
+// Через параметры конструктора
+const vpnClient = new PaliVPN({
+    logLevel: 'debug'
+});
 
-# Через аргумент командной строки
-npm start -- --log-level debug
+// Через файл config.json
+{
+    "logLevel": "debug"
+}
 ```
 
 Уровни логирования:
 - `error` - только ошибки
-- `warn` - предупреждения и ошибки
+- `warn` - предупреждения и ошибки  
 - `info` - информация, предупреждения и ошибки (по умолчанию)
-- `debug` - все сообщения
+- `debug` - все сообщения включая детальную отладку
 
 ## 📝 Разработка
 
@@ -399,30 +530,18 @@ MIT License - подробности в файле LICENSE.
 
 ## 🌐 Serverless поддержка
 
-PaliVPN поддерживает использование в serverless функциях (AWS Lambda, Vercel Edge Functions и т.д.) без необходимости чтения файловой системы.
+PaliVPN поддерживает использование в serverless функциях без необходимости чтения файловой системы.
 
 ### Передача VPN конфигураций напрямую
 
 ```typescript
-import { PaliVPN, VPNConfig } from 'palivpn';
+import { PaliVPN, VPNConfig } from './src/index';
 
 // Предопределенные VPN конфигурации
 const vpnConfigs: VPNConfig[] = [
     {
         name: 'server1',
-        config: `# OpenVPN Configuration
-client
-dev tun
-proto udp
-remote vpn.example.com 1194
-resolv-retry infinite
-nobind
-persist-key
-persist-tun
-ca ca.crt
-cert client.crt
-key client.key
-verb 3`,
+        config: 'путь/к/server1.ovpn',
         priority: 1,
         active: false,
         type: 'openvpn'
@@ -437,9 +556,8 @@ const vpnClient = PaliVPN.withVPNConfigs(vpnConfigs, {
 
 // Или через конструктор
 const vpnClient2 = new PaliVPN({
-    vpnConfigs: vpnConfigs,
     logLevel: 'warn'
-});
+}, vpnConfigs);
 ```
 
 ### AWS Lambda пример
@@ -476,13 +594,14 @@ export async function lambdaHandler(event: any, context: any) {
 
 ```typescript
 export async function vercelEdgeHandler(request: Request) {
-    const vpnClient = new PaliVPN({ vpnConfigs: vpnConfigs });
+    const vpnClient = new PaliVPN({}, vpnConfigs);
 
     try {
         await vpnClient.initialize();
         
         const response = await vpnClient.request({
-            url: 'https://api.ipify.org?format=json'
+            url: 'https://api.ipify.org?format=json',
+            method: 'GET'
         });
         
         const ipData = await response.json();
@@ -499,3 +618,35 @@ export async function vercelEdgeHandler(request: Request) {
     }
 }
 ```
+
+## 🔄 Дополнительные возможности
+
+### Буферизация запросов
+
+PaliVPN включает систему буферизации запросов с приоритетами:
+
+```typescript
+// Запросы автоматически буферизуются в VPNRequester
+const response = await requester.request({
+    url: 'https://example.com',
+    method: 'GET',
+    priority: 'high' // critical, high, normal, low
+});
+```
+
+### Отложенное переключение каналов
+
+```typescript
+// Настройка отложенного переключения в конфигурации
+const vpnClient = new PaliVPN({
+    delayedSwitch: {
+        enabled: true,
+        defaultDelayMs: 5000,
+        maxDelayMs: 30000
+    }
+});
+```
+
+### Управление параллелизмом
+
+Встроенная поддержка мьютексов, семафоров и ReadWrite блокировок для безопасной работы с ресурсами.
