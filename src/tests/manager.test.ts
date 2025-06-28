@@ -5,19 +5,11 @@
 
 import { EventEmitter } from 'events';
 import { VPNManager } from '../manager';
-import { HealthChecker } from '../healthChecker';
-import { ChannelSwitchManager } from '../channelSwitchManager';
 import { 
     AppConfig, 
     VPNConfig, 
-    VPNManagerStatus,
     IHealthChecker,
-    ConcurrencyStatus,
     DelayedSwitchConfig,
-    DelayedSwitchStatus,
-    SwitchReason,
-    SwitchPriority,
-    ActiveOperation,
     VPNHealthStatus
 } from '../types';
 import { logger } from '../utils';
@@ -39,7 +31,7 @@ class MockHealthChecker extends EventEmitter implements IHealthChecker {
         // Мок инициализации
     }
     
-    start(vpnList: VPNConfig[]): void {
+    start(_vpnList: VPNConfig[]): void {
         this._isRunning = true;
         this.emit('started');
     }
@@ -49,7 +41,7 @@ class MockHealthChecker extends EventEmitter implements IHealthChecker {
         this.emit('stopped');
     }
     
-    async checkVPNHealth(vpn: VPNConfig): Promise<VPNHealthStatus> {
+    async checkVPNHealth(_vpn: VPNConfig): Promise<VPNHealthStatus> {
         return {
             isHealthy: true,
             reason: 'Test health check',
@@ -286,7 +278,7 @@ function assert(condition: boolean, message: string): void {
  * Проверка, что значение не null/undefined
  */
 function assertNotNull<T>(value: T | null | undefined, message: string): asserts value is T {
-    if (value == null) {
+    if (value === null || value === undefined) {
         throw new Error(`Assertion failed: ${message}`);
     }
 }
@@ -438,7 +430,7 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(configWithoutPredefined);
         
         // Подменяем методы файловой системы
-        const originalLoadFromFiles = (manager as any).loadVPNConfigsFromFiles;
+        const _originalLoadFromFiles = (manager as any).loadVPNConfigsFromFiles;
         (manager as any).loadVPNConfigsFromFiles = async () => {
             return [
                 {
@@ -542,10 +534,10 @@ class VPNManagerTestSuite {
         await manager.initialize();
         
         // Подменяем методы подключения
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {
             // Мок подключения
         };
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {
             // Мок проверки
         };
         
@@ -565,8 +557,8 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(testAppConfig);
         await manager.initialize();
         
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {};
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
         
         const targetVPN = testVPNConfigs[1]!; // backup-wireguard
         
@@ -590,9 +582,9 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(testAppConfig);
         await manager.initialize();
         
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {};
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
-        (manager as any).terminateVPNConnection = async (vpn: VPNConfig) => {};
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).terminateVPNConnection = async (_vpn: VPNConfig) => {};
         
         // Сначала подключаемся
         await manager.connect(testVPNConfigs[0]!);
@@ -628,9 +620,9 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(testAppConfig);
         await manager.initialize();
         
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {};
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
-        (manager as any).terminateVPNConnection = async (vpn: VPNConfig) => {};
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).terminateVPNConnection = async (_vpn: VPNConfig) => {};
         
         // Подключаемся к первому VPN
         await manager.connect(testVPNConfigs[0]!);
@@ -655,7 +647,7 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(testAppConfig);
         await manager.initialize();
         
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {
             throw new Error('Connection failed');
         };
         
@@ -677,8 +669,8 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(testAppConfig);
         await manager.initialize();
         
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {};
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {
             throw new Error('Verification failed');
         };
         
@@ -699,9 +691,9 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(testAppConfig);
         await manager.initialize();
         
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {};
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
-        (manager as any).terminateVPNConnection = async (vpn: VPNConfig) => {
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).terminateVPNConnection = async (_vpn: VPNConfig) => {
             throw new Error('Disconnection failed');
         };
         
@@ -727,9 +719,9 @@ class VPNManagerTestSuite {
         const manager = createTestVPNManager(testAppConfig);
         await manager.initialize();
         
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {};
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
-        (manager as any).terminateVPNConnection = async (vpn: VPNConfig) => {};
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
+        (manager as any).terminateVPNConnection = async (_vpn: VPNConfig) => {};
         
         // Подключаемся
         await manager.connect(testVPNConfigs[0]!);
@@ -757,11 +749,11 @@ class VPNManagerTestSuite {
         await manager.initialize();
         
         let connectionCount = 0;
-        (manager as any).establishVPNConnection = async (vpn: VPNConfig) => {
+        (manager as any).establishVPNConnection = async (_vpn: VPNConfig) => {
             connectionCount++;
             await delay(50); // Симулируем задержку
         };
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
         
         // Запускаем несколько подключений параллельно
         const promises = [
@@ -947,7 +939,7 @@ class VPNManagerTestSuite {
         // Подменяем методы для тестирования OpenVPN логики
         const originalEstablish = (manager as any).establishVPNConnection;
         (manager as any).establishVPNConnection = originalEstablish;
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
         
         const openvpnVPN = testVPNConfigs.find(v => v.type === 'openvpn')!;
         
@@ -972,7 +964,7 @@ class VPNManagerTestSuite {
         
         const originalEstablish = (manager as any).establishVPNConnection;
         (manager as any).establishVPNConnection = originalEstablish;
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
         
         const wireguardVPN = testVPNConfigs.find(v => v.type === 'wireguard')!;
         
@@ -995,7 +987,7 @@ class VPNManagerTestSuite {
         
         const originalEstablish = (manager as any).establishVPNConnection;
         (manager as any).establishVPNConnection = originalEstablish;
-        (manager as any).verifyConnection = async (vpn: VPNConfig) => {};
+        (manager as any).verifyConnection = async (_vpn: VPNConfig) => {};
         
         const ikev2VPN = testVPNConfigs.find(v => v.type === 'ikev2')!;
         

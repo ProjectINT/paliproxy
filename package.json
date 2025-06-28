@@ -35,18 +35,32 @@
     "test:delayed-switching": "tsx src/tests/delayed-switching.test.ts",
     "test:help": "tsx src/tests/all-tests.ts help",
     "check-env": "node check-env.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "lint": "eslint . --ext .ts,.js",
+    "lint:fix": "eslint . --ext .ts,.js --fix",
+    "lint:check": "eslint . --ext .ts,.js --max-warnings 0"
   },
-  "keywords": ["vpn", "proxy", "network", "tunnel"],
+  "keywords": [
+    "vpn",
+    "proxy",
+    "network",
+    "tunnel"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.30.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0"
+    "@typescript-eslint/eslint-plugin": "^8.35.0",
+    "@typescript-eslint/parser": "^8.35.0",
+    "eslint": "^9.30.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-node": "^11.1.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=20.0.0"

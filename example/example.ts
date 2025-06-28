@@ -91,7 +91,7 @@ async function demonstrateHTTPRequests(requester: VPNRequester): Promise<void> {
         // Выполняем POST запрос
         const postData = { message: 'Hello from PaliVPN!', timestamp: Date.now() };
         const postResponse = await requester.post('https://httpbin.org/post', postData);
-        const postResult = await postResponse.json();
+        const _postResult = await postResponse.json();
         logger.info('POST response received, data echoed correctly');
         
     } catch (error) {
@@ -194,7 +194,7 @@ async function demonstrateErrorHandling(requester: VPNRequester): Promise<void> 
         // Тестируем запрос с VPN fallback
         logger.info('Testing VPN fallback mechanism...');
         
-        const fallbackResult = await requester.requestWithVPNFallback({
+        const _fallbackResult = await requester.requestWithVPNFallback({
             method: 'GET',
             url: 'https://httpbin.org/status/200'
         });

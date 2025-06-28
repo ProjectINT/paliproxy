@@ -1,9 +1,5 @@
 #!/usr/bin/env npx tsx
 
-// Add the current directory to module path
-import { resolve } from 'path';
-import { fileURLToPath } from 'url';
-
 // Import the test suite
 async function runConcurrentConnectionsTest() {
     console.log('🧪 Running Concurrent Connections Test...');

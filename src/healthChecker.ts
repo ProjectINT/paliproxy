@@ -21,12 +21,12 @@ export class HealthChecker extends EventEmitter implements IHealthChecker {
     private intervalId: NodeJS.Timeout | null = null;
     private vpnList: VPNConfig[] = [];
 
-    constructor(private readonly config: AppConfig) {
+    constructor(private readonly _config: AppConfig) {
         super();
-        this.checkInterval = config.healthCheckInterval || 60000;
-        this.checkUrl = config.healthCheckUrl || 'https://httpbin.org/ip';
-        this.timeout = config.healthCheckTimeout || 10000;
-        this.userAgent = config.userAgent || 'PaliVPN-HealthChecker/1.0.0';
+        this.checkInterval = _config.healthCheckInterval || 60000;
+        this.checkUrl = _config.healthCheckUrl || 'https://httpbin.org/ip';
+        this.timeout = _config.healthCheckTimeout || 10000;
+        this.userAgent = _config.userAgent || 'PaliVPN-HealthChecker/1.0.0';
     }
 
     /**
@@ -157,7 +157,7 @@ export class HealthChecker extends EventEmitter implements IHealthChecker {
     /**
      * Проверка базовой связности
      */
-    private async checkConnectivity(vpn: VPNConfig): Promise<HealthCheckResult> {
+    private async checkConnectivity(_vpn: VPNConfig): Promise<HealthCheckResult> {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -233,7 +233,7 @@ export class HealthChecker extends EventEmitter implements IHealthChecker {
     /**
      * Проверка разрешения DNS
      */
-    private async checkDNSResolution(vpn: VPNConfig): Promise<HealthCheckResult> {
+    private async checkDNSResolution(_vpn: VPNConfig): Promise<HealthCheckResult> {
         try {
             const testDomains = ['google.com', 'cloudflare.com'];
             const results: Array<{ domain: string; success: boolean; responseTime?: number; error?: string }> = [];
@@ -244,7 +244,7 @@ export class HealthChecker extends EventEmitter implements IHealthChecker {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 5000);
                     
-                    const response = await fetch(`https://${domain}`, {
+                    const _response = await fetch(`https://${domain}`, {
                         signal: controller.signal,
                         headers: {
                             'User-Agent': this.userAgent
@@ -290,7 +290,7 @@ export class HealthChecker extends EventEmitter implements IHealthChecker {
     /**
      * Проверка латентности
      */
-    private async checkLatency(vpn: VPNConfig): Promise<HealthCheckResult> {
+    private async checkLatency(_vpn: VPNConfig): Promise<HealthCheckResult> {
         try {
             const attempts = 3;
             const latencies: number[] = [];
@@ -342,7 +342,7 @@ export class HealthChecker extends EventEmitter implements IHealthChecker {
     /**
      * Анализ результатов проверки здоровья
      */
-    private analyzeHealthResults(vpn: VPNConfig, results: PromiseSettledResult<HealthCheckResult>[]): VPNHealthStatus {
+    private analyzeHealthResults(_vpn: VPNConfig, results: PromiseSettledResult<HealthCheckResult>[]): VPNHealthStatus {
         const failedChecks: Array<{ check: string; reason: string }> = [];
         const successfulChecks: HealthCheckResult[] = [];
         

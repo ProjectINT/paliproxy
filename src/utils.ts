@@ -96,7 +96,7 @@ export async function retryAsync<T>(
 export function fileExists(filePath: string): boolean {
     try {
         return fs.existsSync(filePath);
-    } catch (error) {
+    } catch {
         return false;
     }
 }
@@ -164,7 +164,7 @@ export function getFilesInDirectory(dirPath: string, extensions: string[] = []):
  * Форматирование размера файла в человекочитаемый вид
  */
 export function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) {return '0 Bytes';}
     
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -225,7 +225,7 @@ export function isValidUrl(url: string): boolean {
     try {
         new URL(url);
         return true;
-    } catch (error) {
+    } catch {
         return false;
     }
 }
@@ -267,7 +267,7 @@ export function commandExists(command: string): boolean {
         const which = process.platform === 'win32' ? 'where' : 'which';
         execAsync(`${which} ${command}`, { stdio: 'ignore' } as any);
         return true;
-    } catch (error) {
+    } catch {
         return false;
     }
 }

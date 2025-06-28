@@ -78,7 +78,7 @@ export class VPNManager extends EventEmitter implements IVPNManager {
      * Настройка обработчиков событий отложенного переключения
      */
     private setupDelayedSwitchHandlers(): void {
-        if (!this._channelSwitchManager) return;
+        if (!this._channelSwitchManager) {return;}
 
         // Немедленное переключение
         this._channelSwitchManager.on('immediateSwitch', async (switchRequest) => {
@@ -193,7 +193,7 @@ export class VPNManager extends EventEmitter implements IVPNManager {
             
             for (let i = 0; i < vpnFiles.length; i++) {
                 const file = vpnFiles[i];
-                if (!file) continue;
+                if (!file) {continue;}
                 
                 const filePath = path.join(configsPath, file);
                 
@@ -974,7 +974,7 @@ export class VPNManager extends EventEmitter implements IVPNManager {
         try {
             const { execWithTimeout, fileExists } = await import('./utils');
             
-            let configPath = vpn.config;
+            const configPath = vpn.config;
             
             // Если это временный файл, нужно найти интерфейс по-другому
             if (!fileExists(vpn.config)) {

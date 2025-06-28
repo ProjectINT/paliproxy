@@ -4,8 +4,7 @@ import {
     RequestBuffer as IRequestBuffer, 
     BufferStatus, 
     BufferConfig,
-    RequestConfig,
-    IVPNManager
+    RequestConfig
 } from './types';
 import { logger, generateId } from './utils';
 
@@ -133,7 +132,7 @@ export class RequestBuffer extends EventEmitter implements IRequestBuffer {
         try {
             while (this.queue.length > 0) {
                 const request = this.queue.shift();
-                if (!request) break;
+                if (!request) {break;}
 
                 await this.processRequest(request);
             }

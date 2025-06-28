@@ -24,7 +24,7 @@ if (majorVersion >= 20) {
 try {
     const tsxPath = require.resolve('tsx');
     console.log(`✅ tsx is installed: ${tsxPath}`);
-} catch (error) {
+} catch {
     console.log('❌ tsx is not installed. Run: npm install tsx');
 }
 
@@ -32,7 +32,7 @@ try {
 try {
     const tscPath = require.resolve('typescript');
     console.log(`✅ TypeScript is installed: ${tscPath}`);
-} catch (error) {
+} catch {
     console.log('❌ TypeScript is not installed. Run: npm install typescript');
 }
 

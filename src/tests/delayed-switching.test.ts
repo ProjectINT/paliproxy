@@ -214,7 +214,7 @@ async function testCriticalOperations(): Promise<void> {
     });
     
     // Запрашиваем переключение во время критичной операции
-    const switchId = await switchManager.requestSwitch(
+    const _switchId = await switchManager.requestSwitch(
         testVPNs[1]!,
         'user_request',
         'normal',

@@ -4,14 +4,10 @@
 
 import { EventEmitter } from 'events';
 import { ChannelSwitchManager } from '../channelSwitchManager';
-import { 
+import {
     DelayedSwitchConfig,
     VPNConfig,
-    SwitchReason,
-    SwitchPriority,
-    ActiveOperation,
-    PendingSwitchRequest,
-    SwitchDecision 
+    ActiveOperation
 } from '../types';
 import { logger, delay } from '../utils';
 
@@ -117,7 +113,7 @@ class ChannelSwitchManagerTestSuite {
     }
     
     private assertNotNull<T>(value: T | null | undefined, message: string): asserts value is T {
-        if (value == null) {
+        if (value === null || value === undefined) {
             throw new Error(`Assertion failed: ${message}`);
         }
     }

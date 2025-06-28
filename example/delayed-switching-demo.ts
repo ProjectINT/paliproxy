@@ -5,13 +5,9 @@
 
 import { VPNManager } from '../src/manager';
 import { VPNRequester } from '../src/requester';
-import { 
-    AppConfig, 
-    VPNConfig, 
-    DelayedSwitchConfig,
-    SwitchReason,
-    SwitchPriority,
-    OperationType 
+import {
+    AppConfig,
+    DelayedSwitchConfig
 } from '../src/types';
 import { logger } from '../src/utils';
 

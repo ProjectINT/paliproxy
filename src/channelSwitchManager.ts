@@ -6,11 +6,10 @@ import {
     SwitchDecision,
     SwitchReason,
     SwitchPriority,
-    OperationType,
     VPNConfig,
     ChannelSwitchManager as IChannelSwitchManager
 } from './types';
-import { logger, generateId, delay } from './utils';
+import { logger, generateId } from './utils';
 import { AsyncMutex } from './concurrency';
 
 /**
@@ -270,7 +269,7 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
     /**
      * Получение решения о переключении
      */
-    getSwitchDecision(targetVPN: VPNConfig, reason: SwitchReason, priority: SwitchPriority): SwitchDecision {
+    getSwitchDecision(_targetVPN: VPNConfig, reason: SwitchReason, priority: SwitchPriority): SwitchDecision {
         const now = Date.now();
         const criticalityLevel = this.getPriorityLevel(priority);
         

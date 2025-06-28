@@ -4,12 +4,10 @@
 
 import { EventEmitter } from 'events';
 import { HealthChecker } from '../healthChecker';
-import { 
-    AppConfig, 
-    VPNConfig, 
-    VPNHealthStatus,
-    HealthCheckResult,
-    HealthCheckerStatus 
+import {
+    AppConfig,
+    VPNConfig,
+    VPNHealthStatus
 } from '../types';
 import { logger, delay } from '../utils';
 
@@ -87,11 +85,7 @@ class MockFetch {
                 
                 const delayPromise = delay(mockResponse.delay);
                 
-                try {
-                    await Promise.race([delayPromise, abortPromise]);
-                } catch (error) {
-                    throw error;
-                }
+                await Promise.race([delayPromise, abortPromise]);
             }
         } else if (mockResponse.delay) {
             await delay(mockResponse.delay);
@@ -165,8 +159,8 @@ class HealthCheckerTestSuite {
         }
     }
     
-    private assertNotNull<T>(value: T | null | undefined, message: string): asserts value is T {
-        if (value == null) {
+    private _assertNotNull<T>(value: T | null | undefined, message: string): asserts value is T {
+        if (value === null || value === undefined) {
             throw new Error(`Assertion failed: ${message}`);
         }
     }

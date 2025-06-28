@@ -50,7 +50,7 @@ verb 3`,
 /**
  * AWS Lambda функция с использованием PaliVPN
  */
-export async function lambdaHandler(event: any, context: any) {
+export async function lambdaHandler(_event: any, _context: any) {
     // Создаем экземпляр PaliVPN с предопределенными конфигурациями
     const vpnClient = PaliVPN.withVPNConfigs(vpnConfigs, {
         logLevel: 'info',
@@ -98,7 +98,7 @@ export async function lambdaHandler(event: any, context: any) {
 /**
  * Vercel Edge Function пример
  */
-export async function vercelEdgeHandler(request: Request) {
+export async function vercelEdgeHandler(_request: Request) {
     const vpnClient = new PaliVPN({
         vpnConfigs: vpnConfigs,
         logLevel: 'warn',

@@ -5,9 +5,7 @@ import {
     BatchRequestResult,
     IVPNRequester,
     IVPNManager,
-    HTTPResponse,
-    BufferConfig,
-    ConcurrencyStatus
+    BufferConfig
 } from './types';
 import { logger } from './utils';
 import { RequestBuffer } from './requestBuffer';
@@ -31,13 +29,13 @@ export class VPNRequester implements IVPNRequester {
     private readonly requestProcessingMutex = new AsyncMutex();
 
     constructor(
-        private readonly config: AppConfig, 
+        private readonly _config: AppConfig, 
         private readonly vpnManager: IVPNManager
     ) {
-        this.timeout = config.httpTimeout || 10000;
-        this.userAgent = config.userAgent || 'PaliVPN/1.0.0';
-        this.retryAttempts = config.retryAttempts || 3;
-        this.retryDelay = config.retryDelay || 1000;
+        this.timeout = _config.httpTimeout || 10000;
+        this.userAgent = _config.userAgent || 'PaliVPN/1.0.0';
+        this.retryAttempts = _config.retryAttempts || 3;
+        this.retryDelay = _config.retryDelay || 1000;
         
         // Инициализируем буфер запросов
         const bufferConfig: BufferConfig = {
@@ -436,7 +434,7 @@ export class VPNRequester implements IVPNRequester {
         // Если VPN доступен, выполняем запрос напрямую
         try {
             return await this.requestWithRetry(config);
-        } catch (error) {
+        } catch {
             // При ошибке пытаемся буферизировать запрос
             logger.warn('Direct request failed, attempting to buffer');
             return this.requestBuffer.createBufferedRequest(config, priority);

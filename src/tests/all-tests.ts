@@ -142,32 +142,37 @@ async function runComponentTests(component: string): Promise<void> {
     
     try {
         switch (component.toLowerCase()) {
-            case 'concurrency':
+            case 'concurrency': {
                 const concurrencyTests = new ConcurrencyTestSuite();
                 await concurrencyTests.runAllTests();
                 break;
+            }
                 
-            case 'healthchecker':
+            case 'healthchecker': {
                 const healthTests = new HealthCheckerTestSuite();
                 await healthTests.runAllTests();
                 break;
+            }
                 
             case 'channelswitchmanager':
-            case 'channelswitch':
+            case 'channelswitch': {
                 const channelSwitchTests = new ChannelSwitchManagerTestSuite();
                 await channelSwitchTests.runAllTests();
                 break;
+            }
                 
             case 'manager':
-            case 'vpnmanager':
+            case 'vpnmanager': {
                 const managerTests = new VPNManagerTestSuite();
                 await managerTests.runAllTests();
                 break;
+            }
                 
-            case 'integration':
+            case 'integration': {
                 const integrationTests = new IntegrationTestSuite();
                 await integrationTests.runAllTests();
                 break;
+            }
                 
             default:
                 throw new Error(`Unknown component: ${component}. Available: concurrency, healthchecker, manager, integration`);
@@ -192,19 +197,21 @@ async function main(): Promise<void> {
                 await runQuickTests();
                 break;
                 
-            case 'component':
+            case 'component': {
                 const component = args[1];
                 if (!component) {
                     throw new Error('Component name required. Usage: npm test component <component-name>');
                 }
                 await runComponentTests(component);
                 break;
+            }
                 
             case 'all':
-            case undefined:
+            case undefined: {
                 const runner = new AllTestsRunner();
                 await runner.runAllTests();
                 break;
+            }
                 
             case 'help':
             case '--help':

@@ -92,7 +92,7 @@ async function demonstrateBuffering(): Promise<void> {
                 await client.manager.switchVPN(backupVPN);
                 logger.info('✅ VPN switched successfully');
             }
-        } catch (error) {
+        } catch {
             logger.warn('⚠️ VPN switch simulation (mock mode)');
         }
         
