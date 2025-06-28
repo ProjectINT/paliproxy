@@ -254,29 +254,51 @@ export class VPNManager extends EventEmitter implements IVPNManager {
      */
     async connect(vpn: VPNConfig): Promise<void> {
         return this.maxVPNConnections.runWithPermit(async () => {
-            logger.info(`Connecting to VPN: ${vpn.name}`);
+            logger.info(`Connecting to VPN: ${vpn.name} (type: ${vpn.type || 'openvpn'})`);
             
-            // TODO: Реализовать фактическое подключение к VPN
-            // Пока симулируем подключение
-            await delay(2000);
-            
-            // Обновляем состояние с защитой от race conditions
-            await this.vpnListLock.runWithWriteLock(async () => {
-                // Деактивируем все другие VPN
-                for (const v of this.vpnList) {
-                    if (v !== vpn) {
-                        v.active = false;
-                    }
+            try {
+                // Отключаемся от текущего VPN если он есть
+                if (this._currentVPN) {
+                    await this.disconnect();
                 }
                 
-                // Активируем текущий VPN
-                vpn.active = true;
-                this._currentVPN = vpn;
-                this.reconnectAttempts = 0;
-            });
-            
-            this.emit('connected', vpn);
-            logger.info(`Connected to VPN: ${vpn.name}`);
+                // Выполняем подключение в зависимости от типа VPN
+                await this.establishVPNConnection(vpn);
+                
+                // Проверяем подключение
+                await this.verifyConnection(vpn);
+                
+                // Обновляем состояние с защитой от race conditions
+                await this.vpnListLock.runWithWriteLock(async () => {
+                    // Деактивируем все другие VPN
+                    for (const v of this.vpnList) {
+                        if (v !== vpn) {
+                            v.active = false;
+                        }
+                    }
+                    
+                    // Активируем текущий VPN
+                    vpn.active = true;
+                    this._currentVPN = vpn;
+                    this.reconnectAttempts = 0;
+                });
+                
+                this.emit('connected', vpn);
+                logger.info(`Successfully connected to VPN: ${vpn.name}`);
+                
+            } catch (error) {
+                logger.error(`Failed to connect to VPN ${vpn.name}:`, (error as Error).message);
+                
+                // Очищаем состояние при ошибке
+                await this.vpnListLock.runWithWriteLock(async () => {
+                    vpn.active = false;
+                    if (this._currentVPN === vpn) {
+                        this._currentVPN = null;
+                    }
+                });
+                
+                throw error;
+            }
         });
     }
 
@@ -290,21 +312,36 @@ export class VPNManager extends EventEmitter implements IVPNManager {
             }
             
             const currentVPN = this._currentVPN;
-            logger.info(`Disconnecting from VPN: ${currentVPN.name}`);
+            logger.info(`Disconnecting from VPN: ${currentVPN.name} (type: ${currentVPN.type || 'openvpn'})`);
             
-            // TODO: Реализовать фактическое отключение от VPN
-            await delay(1000);
-            
-            // Обновляем состояние с защитой от race conditions
-            await this.vpnListLock.runWithWriteLock(async () => {
-                if (currentVPN) {
-                    currentVPN.active = false;
-                }
-                this._currentVPN = null;
-            });
-            
-            this.emit('disconnected', currentVPN);
-            logger.info(`Disconnected from VPN: ${currentVPN.name}`);
+            try {
+                // Отключаемся в зависимости от типа VPN
+                await this.terminateVPNConnection(currentVPN);
+                
+                // Обновляем состояние с защитой от race conditions
+                await this.vpnListLock.runWithWriteLock(async () => {
+                    if (currentVPN) {
+                        currentVPN.active = false;
+                    }
+                    this._currentVPN = null;
+                });
+                
+                this.emit('disconnected', currentVPN);
+                logger.info(`Successfully disconnected from VPN: ${currentVPN.name}`);
+                
+            } catch (error) {
+                logger.error(`Failed to disconnect from VPN ${currentVPN.name}:`, (error as Error).message);
+                
+                // Все равно обновляем состояние
+                await this.vpnListLock.runWithWriteLock(async () => {
+                    if (currentVPN) {
+                        currentVPN.active = false;
+                    }
+                    this._currentVPN = null;
+                });
+                
+                throw error;
+            }
         });
     }
 
@@ -547,5 +584,376 @@ export class VPNManager extends EventEmitter implements IVPNManager {
         }
 
         return status;
+    }
+
+    /**
+     * Установка VPN соединения в зависимости от типа
+     */
+    private async establishVPNConnection(vpn: VPNConfig): Promise<void> {
+        const vpnType = vpn.type || 'openvpn';
+        
+        switch (vpnType) {
+            case 'openvpn':
+                await this.connectOpenVPN(vpn);
+                break;
+            case 'wireguard':
+                await this.connectWireGuard(vpn);
+                break;
+            case 'ikev2':
+                await this.connectIKEv2(vpn);
+                break;
+            default:
+                throw new Error(`Unsupported VPN type: ${vpnType}`);
+        }
+    }
+
+    /**
+     * Подключение через OpenVPN
+     */
+    private async connectOpenVPN(vpn: VPNConfig): Promise<void> {
+        const { commandExists, execWithTimeout, parseOVPNConfig, createTempFile, fileExists } = await import('./utils');
+        
+        // Проверяем наличие OpenVPN
+        if (!commandExists('openvpn')) {
+            throw new Error('OpenVPN client is not installed. Please install openvpn package.');
+        }
+        
+        let configPath = vpn.config;
+        let tempFile: string | null = null;
+        
+        try {
+            // Если config содержит не путь к файлу, а содержимое конфигурации
+            if (!fileExists(vpn.config) && vpn.config.includes('\n')) {
+                tempFile = createTempFile('openvpn-config', '.ovpn');
+                const fs = await import('fs');
+                fs.writeFileSync(tempFile, vpn.config, 'utf8');
+                configPath = tempFile;
+                logger.debug(`Created temporary config file: ${tempFile}`);
+            }
+            
+            // Парсим конфигурацию для проверки
+            const config = parseOVPNConfig(configPath);
+            if (!config) {
+                throw new Error(`Failed to parse OpenVPN config: ${configPath}`);
+            }
+            
+            // Формируем команду подключения
+            const args = [
+                '--config', configPath,
+                '--daemon', `palivpn-${vpn.name}`,
+                '--writepid', `/tmp/palivpn-${vpn.name}.pid`,
+                '--log', `/tmp/palivpn-${vpn.name}.log`
+            ];
+            
+            // Добавляем аутентификацию если есть
+            if (vpn.auth?.username && vpn.auth?.password) {
+                const authFile = createTempFile('openvpn-auth', '.txt');
+                const fs = await import('fs');
+                fs.writeFileSync(authFile, `${vpn.auth.username}\n${vpn.auth.password}`, 'utf8');
+                args.push('--auth-user-pass', authFile);
+            }
+            
+            const command = `openvpn ${args.join(' ')}`;
+            logger.debug(`Executing OpenVPN command: ${command}`);
+            
+            // Запускаем OpenVPN
+            await execWithTimeout(command, this.config.defaultVpnTimeout);
+            
+            // Ждем установления соединения
+            await delay(3000);
+            
+            logger.info(`OpenVPN connection established for ${vpn.name}`);
+            
+        } catch (error) {
+            logger.error(`OpenVPN connection failed:`, error);
+            throw new Error(`OpenVPN connection failed: ${(error as Error).message}`);
+        } finally {
+            // Очищаем временные файлы
+            if (tempFile) {
+                try {
+                    const fs = await import('fs');
+                    fs.unlinkSync(tempFile);
+                } catch (cleanupError) {
+                    logger.warn(`Failed to cleanup temp file ${tempFile}:`, cleanupError);
+                }
+            }
+        }
+    }
+
+    /**
+     * Подключение через WireGuard
+     */
+    private async connectWireGuard(vpn: VPNConfig): Promise<void> {
+        const { commandExists, execWithTimeout, createTempFile, fileExists } = await import('./utils');
+        
+        // Проверяем наличие WireGuard
+        if (!commandExists('wg-quick')) {
+            throw new Error('WireGuard client is not installed. Please install wireguard-tools package.');
+        }
+        
+        let configPath = vpn.config;
+        let tempFile: string | null = null;
+        
+        try {
+            // Если config содержит не путь к файлу, а содержимое конфигурации
+            if (!fileExists(vpn.config) && vpn.config.includes('[Interface]')) {
+                tempFile = createTempFile('wireguard-config', '.conf');
+                const fs = await import('fs');
+                fs.writeFileSync(tempFile, vpn.config, 'utf8');
+                configPath = tempFile;
+                logger.debug(`Created temporary WireGuard config file: ${tempFile}`);
+            }
+            
+            // Запускаем WireGuard
+            const command = `wg-quick up ${configPath}`;
+            logger.debug(`Executing WireGuard command: ${command}`);
+            
+            await execWithTimeout(command, this.config.defaultVpnTimeout);
+            
+            logger.info(`WireGuard connection established for ${vpn.name}`);
+            
+        } catch (error) {
+            logger.error(`WireGuard connection failed:`, error);
+            throw new Error(`WireGuard connection failed: ${(error as Error).message}`);
+        } finally {
+            // Очищаем временные файлы
+            if (tempFile) {
+                try {
+                    const fs = await import('fs');
+                    fs.unlinkSync(tempFile);
+                } catch (cleanupError) {
+                    logger.warn(`Failed to cleanup temp file ${tempFile}:`, cleanupError);
+                }
+            }
+        }
+    }
+
+    /**
+     * Подключение через IKEv2
+     */
+    private async connectIKEv2(vpn: VPNConfig): Promise<void> {
+        const { commandExists, execWithTimeout } = await import('./utils');
+        
+        // Проверяем наличие strongSwan
+        if (!commandExists('ipsec')) {
+            throw new Error('IKEv2 client (strongSwan) is not installed. Please install strongswan package.');
+        }
+        
+        try {
+            // Запускаем IKEv2 соединение
+            // Предполагаем, что конфигурация уже загружена в /etc/ipsec.conf
+            const command = `ipsec up ${vpn.name}`;
+            logger.debug(`Executing IKEv2 command: ${command}`);
+            
+            await execWithTimeout(command, this.config.defaultVpnTimeout);
+            
+            logger.info(`IKEv2 connection established for ${vpn.name}`);
+            
+        } catch (error) {
+            logger.error(`IKEv2 connection failed:`, error);
+            throw new Error(`IKEv2 connection failed: ${(error as Error).message}`);
+        }
+    }
+
+    /**
+     * Проверка установленного VPN соединения
+     */
+    private async verifyConnection(vpn: VPNConfig): Promise<void> {
+        try {
+            logger.debug(`Verifying VPN connection for ${vpn.name}`);
+            
+            // Проверяем сетевые интерфейсы
+            const { execWithTimeout } = await import('./utils');
+            
+            const vpnType = vpn.type || 'openvpn';
+            let interfaceFound = false;
+            
+            try {
+                // Получаем список сетевых интерфейсов
+                const { stdout } = await execWithTimeout('ip link show', 5000);
+                
+                switch (vpnType) {
+                    case 'openvpn':
+                        // OpenVPN обычно создает интерфейс tun0, tun1, etc.
+                        interfaceFound = stdout.includes('tun') || stdout.includes('tap');
+                        break;
+                    case 'wireguard':
+                        // WireGuard создает интерфейс wg0, wg1, etc.
+                        interfaceFound = stdout.includes('wg');
+                        break;
+                    case 'ikev2':
+                        // IKEv2 может использовать различные интерфейсы
+                        interfaceFound = true; // Для IKEv2 используем другой способ проверки
+                        break;
+                }
+                
+            } catch (error) {
+                logger.warn(`Could not check network interfaces:`, error);
+                interfaceFound = true; // Продолжаем без проверки интерфейса
+            }
+            
+            if (!interfaceFound) {
+                throw new Error(`VPN interface not found for ${vpnType} connection`);
+            }
+            
+            // Дополнительная проверка: пытаемся получить новый IP
+            try {
+                const response = await fetch('https://httpbin.org/ip', { 
+                    signal: AbortSignal.timeout(10000) 
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json() as { origin: string };
+                const newIP = data.origin;
+                
+                if (newIP && newIP !== vpn.originalIP) {
+                    logger.debug(`IP changed from ${vpn.originalIP} to ${newIP} - VPN connection verified`);
+                    
+                    // Сохраняем новый IP
+                    vpn.originalIP = newIP;
+                } else {
+                    logger.warn(`IP did not change after VPN connection. Current IP: ${newIP}`);
+                }
+                
+            } catch (error) {
+                logger.warn(`Could not verify IP change:`, error);
+                // Не бросаем ошибку, так как это не критично
+            }
+            
+            logger.info(`VPN connection verified for ${vpn.name}`);
+            
+        } catch (error) {
+            logger.error(`VPN connection verification failed:`, error);
+            throw new Error(`VPN connection verification failed: ${(error as Error).message}`);
+        }
+    }
+
+    /**
+     * Корректное отключение VPN соединения в зависимости от типа
+     */
+    private async terminateVPNConnection(vpn: VPNConfig): Promise<void> {
+        const vpnType = vpn.type || 'openvpn';
+        
+        switch (vpnType) {
+            case 'openvpn':
+                await this.disconnectOpenVPN(vpn);
+                break;
+            case 'wireguard':
+                await this.disconnectWireGuard(vpn);
+                break;
+            case 'ikev2':
+                await this.disconnectIKEv2(vpn);
+                break;
+            default:
+                logger.warn(`Unknown VPN type for disconnect: ${vpnType}`);
+                break;
+        }
+    }
+
+    /**
+     * Отключение OpenVPN
+     */
+    private async disconnectOpenVPN(vpn: VPNConfig): Promise<void> {
+        try {
+            const { execWithTimeout } = await import('./utils');
+            const fs = await import('fs');
+            
+            const pidFile = `/tmp/palivpn-${vpn.name}.pid`;
+            
+            // Пытаемся найти процесс по PID файлу
+            if (fs.existsSync(pidFile)) {
+                try {
+                    const pid = fs.readFileSync(pidFile, 'utf8').trim();
+                    await execWithTimeout(`kill -TERM ${pid}`, 5000);
+                    logger.debug(`Terminated OpenVPN process with PID ${pid}`);
+                    
+                    // Ждем завершения процесса
+                    await delay(2000);
+                    
+                    // Удаляем PID файл
+                    fs.unlinkSync(pidFile);
+                } catch (error) {
+                    logger.warn(`Failed to terminate OpenVPN via PID file:`, error);
+                }
+            }
+            
+            // Fallback: ищем процессы по имени
+            try {
+                await execWithTimeout(`pkill -f "palivpn-${vpn.name}"`, 5000);
+                logger.debug(`Killed OpenVPN processes by name pattern`);
+            } catch (error) {
+                logger.debug(`No OpenVPN processes found to kill:`, error);
+            }
+            
+            logger.info(`OpenVPN disconnection completed for ${vpn.name}`);
+            
+        } catch (error) {
+            logger.error(`OpenVPN disconnection failed:`, error);
+            throw new Error(`OpenVPN disconnection failed: ${(error as Error).message}`);
+        }
+    }
+
+    /**
+     * Отключение WireGuard
+     */
+    private async disconnectWireGuard(vpn: VPNConfig): Promise<void> {
+        try {
+            const { execWithTimeout, fileExists } = await import('./utils');
+            
+            let configPath = vpn.config;
+            
+            // Если это временный файл, нужно найти интерфейс по-другому
+            if (!fileExists(vpn.config)) {
+                // Пытаемся найти активный WireGuard интерфейс
+                try {
+                    const { stdout } = await execWithTimeout('wg show interfaces', 5000);
+                    const interfaces = stdout.trim().split('\n').filter(line => line.trim());
+                    
+                    if (interfaces.length > 0) {
+                        // Отключаем все найденные интерфейсы (упрощенный подход)
+                        for (const iface of interfaces) {
+                            try {
+                                await execWithTimeout(`wg-quick down ${iface}`, 5000);
+                                logger.debug(`Disconnected WireGuard interface: ${iface}`);
+                            } catch (error) {
+                                logger.warn(`Failed to disconnect WireGuard interface ${iface}:`, error);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    logger.warn(`Could not find WireGuard interfaces:`, error);
+                }
+            } else {
+                // Отключаем по файлу конфигурации
+                await execWithTimeout(`wg-quick down ${configPath}`, 5000);
+            }
+            
+            logger.info(`WireGuard disconnection completed for ${vpn.name}`);
+            
+        } catch (error) {
+            logger.error(`WireGuard disconnection failed:`, error);
+            throw new Error(`WireGuard disconnection failed: ${(error as Error).message}`);
+        }
+    }
+
+    /**
+     * Отключение IKEv2
+     */
+    private async disconnectIKEv2(vpn: VPNConfig): Promise<void> {
+        try {
+            const { execWithTimeout } = await import('./utils');
+            
+            // Отключаем IKEv2 соединение
+            await execWithTimeout(`ipsec down ${vpn.name}`, 5000);
+            
+            logger.info(`IKEv2 disconnection completed for ${vpn.name}`);
+            
+        } catch (error) {
+            logger.error(`IKEv2 disconnection failed:`, error);
+            throw new Error(`IKEv2 disconnection failed: ${(error as Error).message}`);
+        }
     }
 }

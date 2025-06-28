@@ -186,8 +186,9 @@ npm start                    # tsx src/index.ts
 # Запуск в режиме разработки (с автоперезагрузкой)
 npm run dev                  # tsx watch src/index.ts
 
-# Запуск примера
-npm run example              # tsx example/example.ts
+# Запуск примеров
+npm run example              # tsx example/example.ts (основной пример)
+npm run example:vpn-connection # Демонстрация VPN подключения к разным типам
 
 # Сборка проекта
 npm run build                # tsc
@@ -335,7 +336,7 @@ const client = PaliVPN.withVPNConfigs(vpnConfigs, config?);
 
 ### VPNManager
 
-Менеджер VPN соединений.
+Менеджер VPN соединений с полной поддержкой OpenVPN, WireGuard и IKEv2.
 
 ```typescript
 const manager = new VPNManager(config);
@@ -346,8 +347,11 @@ await manager.initialize();
 // Запуск
 await manager.start();
 
-// Подключение к конкретному VPN (если реализовано)
+// Подключение к конкретному VPN (полностью реализовано)
 await manager.connect(vpn);
+
+// Переключение VPN
+await manager.switchVPN(targetVPN);
 
 // Получение текущего VPN
 const currentVPN = manager.currentVPN;
@@ -355,8 +359,40 @@ const currentVPN = manager.currentVPN;
 // Получение статуса работы
 const isRunning = manager.isRunning;
 
+// Получение полного статуса
+const status = manager.getStatus();
+
 // Остановка
 await manager.stop();
+```
+
+**Поддерживаемые типы VPN:**
+- **OpenVPN** - с поддержкой username/password аутентификации
+- **WireGuard** - современный высокопроизводительный VPN
+- **IKEv2** - через strongSwan клиент
+
+**Конфигурации VPN:**
+```typescript
+const vpnConfigs: VPNConfig[] = [
+    {
+        name: 'openvpn-server',
+        config: '/path/to/config.ovpn', // или inline конфигурация
+        priority: 1,
+        active: false,
+        type: 'openvpn',
+        auth: {
+            username: 'user',
+            password: 'password'
+        }
+    },
+    {
+        name: 'wireguard-server',
+        config: '/path/to/wg0.conf', // или inline конфигурация
+        priority: 2,
+        active: false,
+        type: 'wireguard'
+    }
+];
 ```
 
 ### VPNRequester
