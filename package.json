@@ -1,0 +1,35 @@
+{
+  "name": "palivpn",
+  "version": "1.0.0",
+  "description": "VPN client with automatic connection management and health checking",
+  "main": "src/index.ts",
+  "types": "src/types.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/index.ts",
+    "start:native": "node --import=tsx/esm src/index.ts",
+    "start:compiled": "npm run build && node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "dev:native": "node --import=tsx/esm --watch src/index.ts",
+    "example": "tsx example/example.ts",
+    "example:native": "node --import=tsx/esm example/example.ts",
+    "example:compiled": "npm run build && node dist/example/example.js",
+    "test": "tsx test-tsx.ts",
+    "check-env": "node check-env.js",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["vpn", "proxy", "network", "tunnel"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "tsx": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
