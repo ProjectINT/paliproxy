@@ -323,7 +323,7 @@ export class VPNManager extends EventEmitter implements IVPNManager {
             try {
                 // Отключаемся от текущего VPN если он есть
                 if (this._currentVPN) {
-                    await this.disconnect();
+                    await this.performDisconnect();
                 }
                 
                 // Выполняем подключение в зависимости от типа VPN
@@ -367,45 +367,52 @@ export class VPNManager extends EventEmitter implements IVPNManager {
     }
 
     /**
+     * Приватный метод отключения без семафора (для использования внутри connect)
+     */
+    private async performDisconnect(): Promise<void> {
+        if (!this._currentVPN) {
+            return;
+        }
+        
+        const currentVPN = this._currentVPN;
+        logger.info(`Disconnecting from VPN: ${currentVPN.name} (type: ${currentVPN.type || 'openvpn'})`);
+        
+        try {
+            // Отключаемся в зависимости от типа VPN
+            await this.terminateVPNConnection(currentVPN);
+            
+            // Обновляем состояние с защитой от race conditions
+            await this.vpnListLock.runWithWriteLock(async () => {
+                if (currentVPN) {
+                    currentVPN.active = false;
+                }
+                this._currentVPN = null;
+            });
+            
+            this.emit('disconnected', currentVPN);
+            logger.info(`Successfully disconnected from VPN: ${currentVPN.name}`);
+            
+        } catch (error) {
+            logger.error(`Failed to disconnect from VPN ${currentVPN.name}:`, (error as Error).message);
+            
+            // Все равно обновляем состояние
+            await this.vpnListLock.runWithWriteLock(async () => {
+                if (currentVPN) {
+                    currentVPN.active = false;
+                }
+                this._currentVPN = null;
+            });
+            
+            throw error;
+        }
+    }
+
+    /**
      * Отключение от текущего VPN
      */
     async disconnect(): Promise<void> {
         return this.maxVPNConnections.runWithPermit(async () => {
-            if (!this._currentVPN) {
-                return;
-            }
-            
-            const currentVPN = this._currentVPN;
-            logger.info(`Disconnecting from VPN: ${currentVPN.name} (type: ${currentVPN.type || 'openvpn'})`);
-            
-            try {
-                // Отключаемся в зависимости от типа VPN
-                await this.terminateVPNConnection(currentVPN);
-                
-                // Обновляем состояние с защитой от race conditions
-                await this.vpnListLock.runWithWriteLock(async () => {
-                    if (currentVPN) {
-                        currentVPN.active = false;
-                    }
-                    this._currentVPN = null;
-                });
-                
-                this.emit('disconnected', currentVPN);
-                logger.info(`Successfully disconnected from VPN: ${currentVPN.name}`);
-                
-            } catch (error) {
-                logger.error(`Failed to disconnect from VPN ${currentVPN.name}:`, (error as Error).message);
-                
-                // Все равно обновляем состояние
-                await this.vpnListLock.runWithWriteLock(async () => {
-                    if (currentVPN) {
-                        currentVPN.active = false;
-                    }
-                    this._currentVPN = null;
-                });
-                
-                throw error;
-            }
+            await this.performDisconnect();
         });
     }
 
