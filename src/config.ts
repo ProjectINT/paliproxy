@@ -33,8 +33,14 @@ class ConfigManager {
         // Начинаем с дефолтных значений
         this.config = { ...this.defaultConfig };
         
+        // Загружаем из environment переменных
+        this.loadFromEnvironment();
+        
         // Загружаем из config.json
         this.loadFromConfigFile();
+        
+        // Загружаем из аргументов командной строки
+        this.loadFromCommandLineArgs();
         
         // Применяем переданный конфиг (наивысший приоритет)
         if (overrideConfig) {
@@ -55,6 +61,86 @@ class ConfigManager {
                 Object.assign(this.config, fileConfig);
             } catch (error) {
                 console.warn(`Failed to load config from ${configPath}:`, (error as Error).message);
+            }
+        }
+    }
+
+    /**
+     * Загрузка конфигурации из environment переменных
+     */
+    private loadFromEnvironment(): void {
+        // VPN настройки
+        if (process.env.PALIVPN_CONFIG_PATH) {
+            this.config.vpnConfigsPath = process.env.PALIVPN_CONFIG_PATH;
+        }
+        if (process.env.PALIVPN_VPN_TIMEOUT) {
+            this.config.defaultVpnTimeout = parseInt(process.env.PALIVPN_VPN_TIMEOUT, 10);
+        }
+        if (process.env.PALIVPN_MAX_RECONNECT_ATTEMPTS) {
+            this.config.maxReconnectAttempts = parseInt(process.env.PALIVPN_MAX_RECONNECT_ATTEMPTS, 10);
+        }
+        
+        // Health checking
+        if (process.env.PALIVPN_HEALTH_CHECK_INTERVAL) {
+            this.config.healthCheckInterval = parseInt(process.env.PALIVPN_HEALTH_CHECK_INTERVAL, 10);
+        }
+        if (process.env.PALIVPN_HEALTH_CHECK_URL) {
+            this.config.healthCheckUrl = process.env.PALIVPN_HEALTH_CHECK_URL;
+        }
+        if (process.env.PALIVPN_HEALTH_CHECK_TIMEOUT) {
+            this.config.healthCheckTimeout = parseInt(process.env.PALIVPN_HEALTH_CHECK_TIMEOUT, 10);
+        }
+        
+        // HTTP настройки
+        if (process.env.PALIVPN_HTTP_TIMEOUT) {
+            this.config.httpTimeout = parseInt(process.env.PALIVPN_HTTP_TIMEOUT, 10);
+        }
+        if (process.env.PALIVPN_USER_AGENT) {
+            this.config.userAgent = process.env.PALIVPN_USER_AGENT;
+        }
+        
+        // Logging
+        if (process.env.PALIVPN_LOG_LEVEL) {
+            this.config.logLevel = process.env.PALIVPN_LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error';
+        }
+        
+        // Environment
+        if (process.env.NODE_ENV) {
+            this.config.nodeEnv = process.env.NODE_ENV as 'development' | 'production' | 'test';
+        }
+    }
+
+    /**
+     * Загрузка конфигурации из аргументов командной строки
+     */
+    private loadFromCommandLineArgs(): void {
+        const args = process.argv.slice(2);
+        
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i];
+            const nextArg = args[i + 1];
+            
+            if (arg === '--config-path' && nextArg) {
+                this.config.vpnConfigsPath = nextArg;
+                i++; // Пропускаем следующий аргумент
+            } else if (arg === '--log-level' && nextArg) {
+                this.config.logLevel = nextArg as 'debug' | 'info' | 'warn' | 'error';
+                i++;
+            } else if (arg === '--health-check-url' && nextArg) {
+                this.config.healthCheckUrl = nextArg;
+                i++;
+            } else if (arg === '--http-timeout' && nextArg) {
+                const timeout = parseInt(nextArg, 10);
+                if (!isNaN(timeout)) {
+                    this.config.httpTimeout = timeout;
+                }
+                i++;
+            } else if (arg === '--vpn-timeout' && nextArg) {
+                const timeout = parseInt(nextArg, 10);
+                if (!isNaN(timeout)) {
+                    this.config.defaultVpnTimeout = timeout;
+                }
+                i++;
             }
         }
     }

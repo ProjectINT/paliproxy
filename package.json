@@ -21,6 +21,7 @@
     "example:race-conditions": "tsx example/race-conditions-demo.ts",
     "example:delayed-switching": "tsx example/delayed-switching-demo.ts",
     "example:vpn-connection": "tsx example/vpn-connection-demo.ts",
+    "example:file-loading": "tsx example/file-loading-demo.ts",
     "example:native": "node --import=tsx/esm example/example.ts",
     "example:compiled": "npm run build && node dist/example/example.js",
     "test": "tsx test-tsx.ts",

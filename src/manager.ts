@@ -156,26 +156,90 @@ export class VPNManager extends EventEmitter implements IVPNManager {
                 }
                 
                 // Иначе загружаем из файловой системы (legacy режим)
-                // TODO: Реализовать загрузку конфигураций из файлов
-                // Пока используем mock данные
-                this.vpnList = [
-                    {
-                        name: 'vpn1',
-                        config: 'path/to/vpn1.ovpn',
-                        priority: 1,
-                        active: false
-                    },
-                    {
-                        name: 'vpn2', 
-                        config: 'path/to/vpn2.ovpn',
-                        priority: 2,
-                        active: false
-                    }
-                ];
+                this.vpnList = await this.loadVPNConfigsFromFiles();
                 
                 logger.info(`Loaded ${this.vpnList.length} VPN configurations from filesystem`);
             });
         });
+    }
+
+    /**
+     * Загрузка VPN конфигураций из файлов в директории
+     */
+    private async loadVPNConfigsFromFiles(): Promise<VPNConfig[]> {
+        const configsPath = this.config.vpnConfigsPath || './configs';
+        const vpnConfigs: VPNConfig[] = [];
+        
+        try {
+            // Проверяем существование директории
+            const fs = await import('fs/promises');
+            const path = await import('path');
+            
+            if (!await fs.access(configsPath).then(() => true).catch(() => false)) {
+                logger.warn(`VPN configs directory not found: ${configsPath}`);
+                return [];
+            }
+            
+            // Читаем файлы в директории
+            const files = await fs.readdir(configsPath);
+            const vpnFiles = files.filter(file => 
+                file.endsWith('.ovpn') || 
+                file.endsWith('.conf') || 
+                file.endsWith('.wg') ||
+                file.endsWith('.json')
+            );
+            
+            logger.info(`Found ${vpnFiles.length} VPN config files in ${configsPath}`);
+            
+            for (let i = 0; i < vpnFiles.length; i++) {
+                const file = vpnFiles[i];
+                if (!file) continue;
+                
+                const filePath = path.join(configsPath, file);
+                
+                try {
+                    const content = await fs.readFile(filePath, 'utf8');
+                    const fileName = path.parse(file).name;
+                    
+                    // Определяем тип VPN по расширению файла
+                    let type: 'openvpn' | 'wireguard' | 'ikev2' = 'openvpn';
+                    if (file.endsWith('.wg') || file.endsWith('.conf')) {
+                        type = 'wireguard';
+                    } else if (file.endsWith('.json')) {
+                        // Попробуем распарсить JSON конфиг
+                        try {
+                            const jsonConfig = JSON.parse(content);
+                            if (jsonConfig.type) {
+                                type = jsonConfig.type;
+                            }
+                        } catch {
+                            // Если не JSON, оставляем OpenVPN
+                        }
+                    }
+                    
+                    const vpnConfig: VPNConfig = {
+                        name: fileName,
+                        type: type,
+                        config: content,
+                        priority: i + 1, // Приоритет по порядку файлов
+                        active: false
+                    };
+                    
+                    vpnConfigs.push(vpnConfig);
+                    logger.debug(`Loaded VPN config: ${fileName} (${type})`);
+                    
+                } catch (error) {
+                    logger.warn(`Failed to load VPN config file ${file}:`, (error as Error).message);
+                }
+            }
+            
+            logger.info(`Successfully loaded ${vpnConfigs.length} VPN configurations from files`);
+            return vpnConfigs;
+            
+        } catch (error) {
+            logger.error(`Failed to load VPN configs from directory ${configsPath}:`, (error as Error).message);
+            return [];
+        }
     }
 
     /**

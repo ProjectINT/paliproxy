@@ -113,6 +113,20 @@ export class PaliVPN {
     }
 
     /**
+     * Получение VPN менеджера для прямого доступа к функциям управления VPN
+     */
+    getVPNManager(): VPNManager {
+        return this.vpnManager;
+    }
+
+    /**
+     * Получение HTTP клиента для прямого доступа к функциям запросов
+     */
+    getRequester(): VPNRequester {
+        return this.requester;
+    }
+
+    /**
      * Создание экземпляра PaliVPN с предопределенными VPN конфигурациями
      * Полезно для serverless функций, где не нужно читать файловую систему
      */
