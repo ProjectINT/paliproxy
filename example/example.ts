@@ -13,7 +13,7 @@ async function main(): Promise<void> {
         logger.info('PaliVPN Example - Starting...');
         
         // 1. Загружаем конфигурацию
-        const vpnConfig = configManager.load();
+        const vpnConfig = configManager.get();
         logger.info('Configuration loaded:', {
             healthCheckInterval: vpnConfig.healthCheckInterval,
             httpTimeout: vpnConfig.httpTimeout,

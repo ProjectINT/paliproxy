@@ -12,6 +12,8 @@
     "dev": "tsx watch src/index.ts",
     "dev:native": "node --import=tsx/esm --watch src/index.ts",
     "example": "tsx example/example.ts",
+    "example:simple": "tsx example/simple.ts",
+    "example:usage": "tsx example/usage.ts",
     "example:native": "node --import=tsx/esm example/example.ts",
     "example:compiled": "npm run build && node dist/example/example.js",
     "test": "tsx test-tsx.ts",

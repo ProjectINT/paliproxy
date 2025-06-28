@@ -1,39 +1,133 @@
 #!/usr/bin/env node
 
 import { VPNManager } from './manager';
+import { VPNRequester } from './requester';
 import configManager from './config';
 import { logger } from './utils';
+import { AppConfig, RequestConfig } from './types';
 
 /**
- * Основная точка входа в приложение
+ * Главный класс PaliVPN
+ * Предоставляет простой интерфейс для работы с VPN и выполнения запросов
+ */
+export class PaliVPN {
+    private vpnManager: VPNManager;
+    private requester: VPNRequester;
+    private config: AppConfig;
+    private _isInitialized: boolean = false;
+
+    constructor(config?: Partial<AppConfig>) {
+        // Загружаем конфигурацию
+        this.config = config ? { ...configManager.get(), ...config } : configManager.get();
+        
+        // Создаем менеджер VPN соединений
+        this.vpnManager = new VPNManager(this.config);
+        
+        // Создаем HTTP клиент
+        this.requester = new VPNRequester(this.config, this.vpnManager);
+    }
+
+    /**
+     * Инициализация VPN клиента
+     */
+    async initialize(): Promise<void> {
+        if (this._isInitialized) {
+            return;
+        }
+
+        try {
+            logger.info('Initializing PaliVPN client...');
+            
+            await this.vpnManager.initialize();
+            await this.vpnManager.start();
+            
+            this._isInitialized = true;
+            logger.info('PaliVPN client initialized successfully');
+        } catch (error) {
+            logger.error('Failed to initialize PaliVPN client:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Выполнение HTTP запроса через VPN
+     */
+    async request(config: RequestConfig): Promise<Response> {
+        if (!this._isInitialized) {
+            await this.initialize();
+        }
+
+        return this.requester.request(config);
+    }
+
+    /**
+     * Остановка VPN клиента
+     */
+    async stop(): Promise<void> {
+        if (!this._isInitialized) {
+            return;
+        }
+
+        try {
+            logger.info('Stopping PaliVPN client...');
+            await this.vpnManager.stop();
+            this._isInitialized = false;
+            logger.info('PaliVPN client stopped successfully');
+        } catch (error) {
+            logger.error('Failed to stop PaliVPN client:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Получение статуса VPN соединения
+     */
+    get isConnected(): boolean {
+        return this.vpnManager.currentVPN !== null;
+    }
+
+    /**
+     * Получение текущего VPN
+     */
+    get currentVPN() {
+        return this.vpnManager.currentVPN;
+    }
+
+    /**
+     * Получение VPN менеджера для расширенного использования
+     */
+    get manager(): VPNManager {
+        return this.vpnManager;
+    }
+
+    /**
+     * Получение HTTP клиента для расширенного использования
+     */
+    get httpClient(): VPNRequester {
+        return this.requester;
+    }
+}
+
+/**
+ * Основная точка входа в приложение (legacy)
  * Инициализирует VPN клиент с конфигурацией
  */
 async function main(): Promise<void> {
+    const client = new PaliVPN();
+    
     try {
-        logger.info('Starting PaliVPN client...');
-        
-        // Загружаем конфигурацию
-        const vpnConfig = configManager.load();
-        
-        // Создаем менеджер VPN соединений
-        const vpnManager = new VPNManager(vpnConfig);
-        
-        // Инициализируем и запускаем
-        await vpnManager.initialize();
-        await vpnManager.start();
-        
-        logger.info('PaliVPN client started successfully');
+        await client.initialize();
         
         // Обработка сигналов для корректного завершения
         process.on('SIGINT', async () => {
             logger.info('Received SIGINT, shutting down gracefully...');
-            await vpnManager.stop();
+            await client.stop();
             process.exit(0);
         });
         
         process.on('SIGTERM', async () => {
             logger.info('Received SIGTERM, shutting down gracefully...');
-            await vpnManager.stop();
+            await client.stop();
             process.exit(0);
         });
         
@@ -63,6 +157,7 @@ if (require.main === module) {
 
 // Экспорты для использования как библиотеки
 export { main };
+export { PaliVPN as default };
 export { VPNManager } from './manager';
 export { HealthChecker } from './healthChecker';
 export { VPNRequester } from './requester';
