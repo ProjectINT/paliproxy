@@ -5,9 +5,11 @@ import {
     BatchRequestResult,
     IVPNRequester,
     IVPNManager,
-    HTTPResponse
+    HTTPResponse,
+    BufferConfig
 } from './types';
 import { logger } from './utils';
+import { RequestBuffer } from './requestBuffer';
 
 /**
  * HTTP клиент для выполнения запросов через активный VPN туннель
@@ -17,6 +19,8 @@ export class VPNRequester implements IVPNRequester {
     private readonly userAgent: string;
     private readonly retryAttempts: number;
     private readonly retryDelay: number;
+    private readonly requestBuffer: RequestBuffer;
+    private isVPNSwitching: boolean = false;
 
     constructor(
         private readonly config: AppConfig, 
@@ -26,6 +30,26 @@ export class VPNRequester implements IVPNRequester {
         this.userAgent = config.userAgent || 'PaliVPN/1.0.0';
         this.retryAttempts = config.retryAttempts || 3;
         this.retryDelay = config.retryDelay || 1000;
+        
+        // Инициализируем буфер запросов
+        const bufferConfig: BufferConfig = {
+            maxSize: 100,
+            processingInterval: 1000,
+            maxRetries: 3,
+            timeoutMs: 30000,
+            priorityWeights: {
+                critical: 1000,
+                high: 100,
+                normal: 10,
+                low: 1
+            }
+        };
+        
+        this.requestBuffer = new RequestBuffer(bufferConfig, (config) => this.createRequest(config));
+        this.requestBuffer.startAutoProcessing();
+        
+        // Подписываемся на события VPN Manager для управления буфером
+        this.setupVPNEventHandlers();
     }
 
     /**
@@ -138,24 +162,33 @@ export class VPNRequester implements IVPNRequester {
     }
 
     /**
-     * GET запрос
+     * GET запрос с поддержкой буферизации
      */
-    async get(url: string, config: RequestConfig = {}): Promise<Response> {
-        return this.requestWithRetry({ ...config, url, method: 'GET' });
+    async get(url: string, config: RequestConfig = {}, priority?: 'low' | 'normal' | 'high' | 'critical'): Promise<Response> {
+        const requestConfig = { ...config, url, method: 'GET' as const };
+        return priority ? 
+            this.requestWithBuffering(requestConfig, priority) : 
+            this.requestWithRetry(requestConfig);
     }
 
     /**
-     * POST запрос
+     * POST запрос с поддержкой буферизации
      */
-    async post(url: string, data?: any, config: RequestConfig = {}): Promise<Response> {
-        return this.requestWithRetry({ ...config, url, method: 'POST', body: data });
+    async post(url: string, data?: any, config: RequestConfig = {}, priority?: 'low' | 'normal' | 'high' | 'critical'): Promise<Response> {
+        const requestConfig = { ...config, url, method: 'POST' as const, body: data };
+        return priority ? 
+            this.requestWithBuffering(requestConfig, priority) : 
+            this.requestWithRetry(requestConfig);
     }
 
     /**
-     * PUT запрос
+     * PUT запрос с поддержкой буферизации
      */
-    async put(url: string, data?: any, config: RequestConfig = {}): Promise<Response> {
-        return this.requestWithRetry({ ...config, url, method: 'PUT', body: data });
+    async put(url: string, data?: any, config: RequestConfig = {}, priority?: 'low' | 'normal' | 'high' | 'critical'): Promise<Response> {
+        const requestConfig = { ...config, url, method: 'PUT' as const, body: data };
+        return priority ? 
+            this.requestWithBuffering(requestConfig, priority) : 
+            this.requestWithRetry(requestConfig);
     }
 
     /**
@@ -337,5 +370,75 @@ export class VPNRequester implements IVPNRequester {
             currentVPN: this.vpnManager.currentVPN?.name || 'none',
             vpnManagerRunning: this.vpnManager.isRunning
         };
+    }
+
+    /**
+     * Настройка обработчиков событий VPN Manager
+     */
+    private setupVPNEventHandlers(): void {
+        // При переключении VPN переходим в режим буферизации
+        this.vpnManager.on('switched', () => {
+            logger.info('VPN switched, processing buffered requests');
+            this.isVPNSwitching = false;
+            this.requestBuffer.process();
+        });
+        
+        // При отключении VPN включаем буферизацию
+        this.vpnManager.on('disconnected', () => {
+            logger.info('VPN disconnected, enabling request buffering');
+            this.isVPNSwitching = true;
+        });
+        
+        // При подключении VPN обрабатываем буфер
+        this.vpnManager.on('connected', () => {
+            logger.info('VPN connected, processing buffered requests');
+            this.isVPNSwitching = false;
+            this.requestBuffer.process();
+        });
+    }
+
+    /**
+     * Выполнение запроса с поддержкой буферизации
+     */
+    async requestWithBuffering(
+        config: RequestConfig, 
+        priority: 'low' | 'normal' | 'high' | 'critical' = 'normal'
+    ): Promise<Response> {
+        // Если VPN переключается или недоступен, добавляем запрос в буфер
+        if (this.isVPNSwitching || !this.vpnManager.currentVPN || !this.vpnManager.isRunning) {
+            logger.debug('VPN not available, buffering request');
+            return this.requestBuffer.createBufferedRequest(config, priority);
+        }
+        
+        // Если VPN доступен, выполняем запрос напрямую
+        try {
+            return await this.requestWithRetry(config);
+        } catch (error) {
+            // При ошибке пытаемся буферизировать запрос
+            logger.warn('Direct request failed, attempting to buffer');
+            return this.requestBuffer.createBufferedRequest(config, priority);
+        }
+    }
+
+    /**
+     * Получение статуса буфера запросов
+     */
+    getBufferStatus() {
+        return this.requestBuffer.getStatus();
+    }
+
+    /**
+     * Очистка буфера запросов
+     */
+    clearBuffer(): void {
+        this.requestBuffer.clear();
+    }
+
+    /**
+     * Остановка буфера запросов
+     */
+    stopBuffer(): void {
+        this.requestBuffer.stopAutoProcessing();
+        this.requestBuffer.clear();
     }
 }

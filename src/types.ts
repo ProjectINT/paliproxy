@@ -168,9 +168,9 @@ export interface IHealthChecker extends EventEmitter {
 
 // Интерфейс для HTTP Requester
 export interface IVPNRequester {
-    get(url: string, config?: RequestConfig): Promise<Response>;
-    post(url: string, data?: any, config?: RequestConfig): Promise<Response>;
-    put(url: string, data?: any, config?: RequestConfig): Promise<Response>;
+    get(url: string, config?: RequestConfig, priority?: 'low' | 'normal' | 'high' | 'critical'): Promise<Response>;
+    post(url: string, data?: any, config?: RequestConfig, priority?: 'low' | 'normal' | 'high' | 'critical'): Promise<Response>;
+    put(url: string, data?: any, config?: RequestConfig, priority?: 'low' | 'normal' | 'high' | 'critical'): Promise<Response>;
     delete(url: string, config?: RequestConfig): Promise<Response>;
     patch(url: string, data?: any, config?: RequestConfig): Promise<Response>;
     head(url: string, config?: RequestConfig): Promise<Response>;
@@ -180,6 +180,10 @@ export interface IVPNRequester {
     checkConnectivity(url?: string, timeout?: number): Promise<ConnectivityResult>;
     requestWithVPNFallback(config: RequestConfig): Promise<Response>;
     batchRequests(requests: RequestConfig[], concurrency?: number): Promise<BatchRequestResult[]>;
+    requestWithBuffering(config: RequestConfig, priority?: 'low' | 'normal' | 'high' | 'critical'): Promise<Response>;
+    getBufferStatus(): BufferStatus;
+    clearBuffer(): void;
+    stopBuffer(): void;
 }
 
 // Интерфейс для Config Manager
@@ -235,3 +239,48 @@ export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 export type VPNType = 'openvpn' | 'wireguard' | 'ikev2';
 export type Environment = 'development' | 'production' | 'test';
+
+// Типы для буферизации запросов
+export interface BufferedRequest {
+    id: string;
+    config: RequestConfig;
+    timestamp: number;
+    priority: 'low' | 'normal' | 'high' | 'critical';
+    retryCount: number;
+    maxRetries: number;
+    resolve: (value: Response) => void;
+    reject: (reason: any) => void;
+    timeout?: NodeJS.Timeout;
+}
+
+export interface RequestBuffer {
+    readonly size: number;
+    readonly maxSize: number;
+    readonly isProcessing: boolean;
+    add(request: BufferedRequest): boolean;
+    process(): Promise<void>;
+    clear(): void;
+    getStatus(): BufferStatus;
+}
+
+export interface BufferStatus {
+    queueSize: number;
+    maxSize: number;
+    isProcessing: boolean;
+    totalProcessed: number;
+    totalFailed: number;
+    averageProcessingTime: number;
+}
+
+export interface BufferConfig {
+    maxSize: number;
+    processingInterval: number;
+    maxRetries: number;
+    timeoutMs: number;
+    priorityWeights: {
+        critical: number;
+        high: number;
+        normal: number;
+        low: number;
+    };
+}
