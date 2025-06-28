@@ -77,6 +77,14 @@ export class VPNManager extends EventEmitter implements IVPNManager {
      * Загрузка VPN конфигураций
      */
     private async loadVPNConfigs(): Promise<void> {
+        // Если VPN конфигурации переданы в config, используем их
+        if (this.config.vpnConfigs && this.config.vpnConfigs.length > 0) {
+            this.vpnList = [...this.config.vpnConfigs];
+            logger.info(`Using ${this.vpnList.length} provided VPN configurations`);
+            return;
+        }
+        
+        // Иначе загружаем из файловой системы (legacy режим)
         // TODO: Реализовать загрузку конфигураций из файлов
         // Пока используем mock данные
         this.vpnList = [
@@ -94,7 +102,7 @@ export class VPNManager extends EventEmitter implements IVPNManager {
             }
         ];
         
-        logger.info(`Loaded ${this.vpnList.length} VPN configurations`);
+        logger.info(`Loaded ${this.vpnList.length} VPN configurations from filesystem`);
     }
 
     /**

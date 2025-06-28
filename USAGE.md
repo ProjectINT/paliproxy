@@ -23,19 +23,96 @@ console.log('IP через VPN:', data.origin);
 await vpnClient.stop();
 ```
 
+## Serverless использование
+
+PaliVPN поддерживает работу в serverless окружениях без доступа к файловой системе.
+
+### Способ 1: Статический метод withVPNConfigs()
+
+```typescript
+import { PaliVPN, VPNConfig } from './src/index';
+
+const vpnConfigs: VPNConfig[] = [
+    {
+        name: 'server1',
+        config: `client
+dev tun
+proto udp
+remote vpn.example.com 1194
+resolv-retry infinite`,
+        priority: 1,
+        active: false,
+        type: 'openvpn'
+    }
+];
+
+// Создание с предопределенными конфигурациями
+const vpnClient = PaliVPN.withVPNConfigs(vpnConfigs, {
+    logLevel: 'info',
+    healthCheckInterval: 30000
+});
+```
+
+### Способ 2: Через конструктор
+
+```typescript
+import PaliVPN from './src/index';
+
+const vpnClient = new PaliVPN({
+    vpnConfigs: vpnConfigs,
+    logLevel: 'warn',
+    maxReconnectAttempts: 2
+});
+```
+
+### Пример AWS Lambda функции
+
+```typescript
+export async function lambdaHandler(event: any, context: any) {
+    const vpnClient = PaliVPN.withVPNConfigs(vpnConfigs);
+
+    try {
+        await vpnClient.initialize();
+        
+        const response = await vpnClient.request({
+            url: 'https://httpbin.org/ip'
+        });
+        
+        return {
+            statusCode: 200,
+            body: JSON.stringify(await response.json())
+        };
+    } finally {
+        await vpnClient.stop();
+    }
+}
+```
+
 ## API методы
 
 ### Constructor
 ```typescript
-new PaliVPN(config?: Partial<AppConfig>)
+new PaliVPN(config?: Partial<AppConfig>, vpnConfigs?: VPNConfig[])
 ```
-Создает новый экземпляр VPN клиента с опциональной конфигурацией.
+Создает новый экземпляр VPN клиента с опциональной конфигурацией и VPN серверами.
+
+### Статический метод withVPNConfigs()
+```typescript
+static withVPNConfigs(vpnConfigs: VPNConfig[], config?: Partial<AppConfig>): PaliVPN
+```
+Создает экземпляр с предопределенными VPN конфигурациями (удобно для serverless).
 
 ### request()
 ```typescript
 async request(config: RequestConfig): Promise<Response>
 ```
 Выполняет HTTP запрос через активный VPN туннель. Автоматически инициализирует VPN при первом запросе.
+
+### initialize()
+```typescript
+async initialize(): Promise<void>
+```
+Явная инициализация VPN клиента. Автоматически вызывается при первом запросе.
 
 ### stop()
 ```typescript

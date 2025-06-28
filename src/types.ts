@@ -30,6 +30,7 @@ export interface AppConfig {
     nodeEnv: 'development' | 'production' | 'test';
     retryAttempts?: number;
     retryDelay?: number;
+    vpnConfigs?: VPNConfig[]; // Предопределенные VPN конфигурации для serverless
 }
 
 // Результат проверки здоровья VPN

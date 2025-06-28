@@ -396,3 +396,106 @@ MIT License - подробности в файле LICENSE.
 1. Проверьте [Issues](https://github.com/your-repo/palivpn/issues)
 2. Создайте новый Issue с подробным описанием проблемы
 3. Приложите логи с уровнем `debug`
+
+## 🌐 Serverless поддержка
+
+PaliVPN поддерживает использование в serverless функциях (AWS Lambda, Vercel Edge Functions и т.д.) без необходимости чтения файловой системы.
+
+### Передача VPN конфигураций напрямую
+
+```typescript
+import { PaliVPN, VPNConfig } from 'palivpn';
+
+// Предопределенные VPN конфигурации
+const vpnConfigs: VPNConfig[] = [
+    {
+        name: 'server1',
+        config: `# OpenVPN Configuration
+client
+dev tun
+proto udp
+remote vpn.example.com 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+ca ca.crt
+cert client.crt
+key client.key
+verb 3`,
+        priority: 1,
+        active: false,
+        type: 'openvpn'
+    }
+];
+
+// Создание экземпляра с VPN конфигурациями
+const vpnClient = PaliVPN.withVPNConfigs(vpnConfigs, {
+    logLevel: 'info',
+    healthCheckInterval: 30000
+});
+
+// Или через конструктор
+const vpnClient2 = new PaliVPN({
+    vpnConfigs: vpnConfigs,
+    logLevel: 'warn'
+});
+```
+
+### AWS Lambda пример
+
+```typescript
+export async function lambdaHandler(event: any, context: any) {
+    const vpnClient = PaliVPN.withVPNConfigs(vpnConfigs);
+
+    try {
+        await vpnClient.initialize();
+        
+        const response = await vpnClient.request({
+            url: 'https://httpbin.org/ip',
+            method: 'GET'
+        });
+        
+        const data = await response.json();
+        
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Success',
+                vpnServer: vpnClient.currentVPN?.name,
+                data: data
+            })
+        };
+    } finally {
+        await vpnClient.stop();
+    }
+}
+```
+
+### Vercel Edge Function пример
+
+```typescript
+export async function vercelEdgeHandler(request: Request) {
+    const vpnClient = new PaliVPN({ vpnConfigs: vpnConfigs });
+
+    try {
+        await vpnClient.initialize();
+        
+        const response = await vpnClient.request({
+            url: 'https://api.ipify.org?format=json'
+        });
+        
+        const ipData = await response.json();
+        
+        return new Response(JSON.stringify({
+            success: true,
+            vpnServer: vpnClient.currentVPN?.name,
+            externalIP: ipData
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } finally {
+        await vpnClient.stop();
+    }
+}
+```

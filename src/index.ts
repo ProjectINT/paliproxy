@@ -4,7 +4,7 @@ import { VPNManager } from './manager';
 import { VPNRequester } from './requester';
 import configManager from './config';
 import { logger } from './utils';
-import { AppConfig, RequestConfig } from './types';
+import { AppConfig, RequestConfig, VPNConfig } from './types';
 
 /**
  * Главный класс PaliVPN
@@ -16,9 +16,14 @@ export class PaliVPN {
     private config: AppConfig;
     private _isInitialized: boolean = false;
 
-    constructor(config?: Partial<AppConfig>) {
+    constructor(config?: Partial<AppConfig>, vpnConfigs?: VPNConfig[]) {
         // Загружаем конфигурацию
         this.config = config ? { ...configManager.get(), ...config } : configManager.get();
+        
+        // Если переданы VPN конфигурации, добавляем их в конфиг
+        if (vpnConfigs && vpnConfigs.length > 0) {
+            this.config.vpnConfigs = vpnConfigs;
+        }
         
         // Создаем менеджер VPN соединений
         this.vpnManager = new VPNManager(this.config);
@@ -105,6 +110,14 @@ export class PaliVPN {
      */
     get httpClient(): VPNRequester {
         return this.requester;
+    }
+
+    /**
+     * Создание экземпляра PaliVPN с предопределенными VPN конфигурациями
+     * Полезно для serverless функций, где не нужно читать файловую систему
+     */
+    static withVPNConfigs(vpnConfigs: VPNConfig[], config?: Partial<AppConfig>): PaliVPN {
+        return new PaliVPN(config, vpnConfigs);
     }
 }
 
