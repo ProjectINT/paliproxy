@@ -105,7 +105,7 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
                 this._pendingSwitches.sort((a, b) => a.scheduledAt - b.scheduledAt);
                 
                 this.emit('switchScheduled', switchRequest);
-                logger.debug(`Switch ${switchId} scheduled for ${new Date(switchRequest.scheduledAt).toISOString()}`);
+                logger.info(`Switch ${switchId} scheduled for ${new Date(switchRequest.scheduledAt).toISOString()}`);
             } else if (decision.action === 'postponed') {
                 // Отложено до завершения критичных операций
                 switchRequest.scheduledAt = now + this.config.maxDelayMs;
@@ -127,26 +127,24 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
      * Отмена запланированного переключения
      */
     cancelSwitch(switchId: string): boolean {
-        return this.switchMutex.runWithLock(async () => {
-            const index = this._pendingSwitches.findIndex(s => s.id === switchId);
-            
-            if (index === -1) {
-                return false;
-            }
+        const index = this._pendingSwitches.findIndex(s => s.id === switchId);
+        
+        if (index === -1) {
+            return false;
+        }
 
-            const switchRequest = this._pendingSwitches[index];
-            
-            if (switchRequest && !switchRequest.canCancel) {
-                logger.warn(`Cannot cancel switch ${switchId}: cancellation not allowed`);
-                return false;
-            }
+        const switchRequest = this._pendingSwitches[index]!;
+        
+        if (!switchRequest.canCancel) {
+            logger.warn(`Cannot cancel switch ${switchId}: cancellation not allowed`);
+            return false;
+        }
 
-            this._pendingSwitches.splice(index, 1);
-            this.emit('switchCancelled', switchRequest);
-            
-            logger.info(`Switch ${switchId} cancelled successfully`);
-            return true;
-        }) as any; // Возвращаем результат синхронно для простоты API
+        this._pendingSwitches.splice(index, 1);
+        this.emit('switchCancelled', switchRequest.id, 'user_requested');
+        
+        logger.info(`Switch ${switchId} cancelled successfully`);
+        return true;
     }
 
     /**
@@ -157,12 +155,14 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
             const operationId = generateId(12);
             const activeOperation: ActiveOperation = {
                 ...operation,
-                id: operationId
+                id: operationId,
+                // Normalize criticality level to be between 0 and 100
+                criticalityLevel: Math.max(0, Math.min(100, operation.criticalityLevel))
             };
 
             this._activeOperations.push(activeOperation);
             
-            logger.debug(`Operation ${operationId} registered (type: ${operation.type}, criticality: ${operation.criticalityLevel})`);
+            logger.debug(`Operation ${operationId} registered (type: ${operation.type}, criticality: ${activeOperation.criticalityLevel})`);
             this.emit('operationStarted', activeOperation);
 
             // Автоматическое завершение по истечении времени
@@ -170,6 +170,11 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
                 setTimeout(() => {
                     this.completeOperation(operationId);
                 }, operation.estimatedDuration);
+            } else if (operation.estimatedDuration === 0) {
+                // Операции с нулевой длительностью завершаются немедленно
+                setImmediate(() => {
+                    this.completeOperation(operationId);
+                });
             }
 
             return operationId;
@@ -180,30 +185,28 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
      * Завершение операции
      */
     completeOperation(operationId: string): void {
-        this.operationsMutex.runWithLock(async () => {
-            const index = this._activeOperations.findIndex(op => op.id === operationId);
-            
-            if (index === -1) {
-                return;
+        const index = this._activeOperations.findIndex(op => op.id === operationId);
+        
+        if (index === -1) {
+            return;
+        }
+
+        const operation = this._activeOperations[index];
+        this._activeOperations.splice(index, 1);
+        
+        if (operation && operation.onComplete) {
+            try {
+                operation.onComplete();
+            } catch (error) {
+                logger.error(`Error in operation completion callback:`, error);
             }
+        }
 
-            const operation = this._activeOperations[index];
-            this._activeOperations.splice(index, 1);
-            
-            if (operation && operation.onComplete) {
-                try {
-                    operation.onComplete();
-                } catch (error) {
-                    logger.error(`Error in operation completion callback:`, error);
-                }
-            }
+        logger.debug(`Operation ${operationId} completed`);
+        this.emit('operationCompleted', operation);
 
-            logger.debug(`Operation ${operationId} completed`);
-            this.emit('operationCompleted', operation);
-
-            // Проверяем, можно ли теперь выполнить отложенные переключения
-            this.checkPendingSwitches();
-        });
+        // Проверяем, можно ли теперь выполнить отложенные переключения
+        this.checkPendingSwitches();
     }
 
     /**
@@ -246,9 +249,11 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
      */
     getOptimalSwitchTime(): number {
         const now = Date.now();
-        const criticalOps = this._activeOperations.filter(op => 
-            op.criticalityLevel >= this.config.criticalityThresholds.immediate
-        );
+        const criticalOps = this._activeOperations.filter(op => {
+            // Ignore operations that should already be completed or have zero duration
+            const shouldBeCompleted = op.estimatedDuration === 0 || (op.startedAt + op.estimatedDuration) <= now;
+            return !shouldBeCompleted && op.criticalityLevel >= this.config.criticalityThresholds.normal;
+        });
 
         if (criticalOps.length === 0) {
             return now; // Можно переключаться немедленно
@@ -287,13 +292,29 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
             return {
                 action: 'immediate',
                 delayMs: 0,
-                reason: 'Emergency or critical priority',
+                reason: 'emergency or critical priority',
                 affectedOperations: this._activeOperations.map(op => op.id)
             };
         }
 
         // Проверяем наличие критичных операций
         if (highCriticalOperations.length > 0) {
+            // Проверяем, можно ли прервать операции для высокого приоритета
+            const interruptibleOperations = highCriticalOperations.filter(op => op.canInterrupt);
+            const nonInterruptibleOperations = highCriticalOperations.filter(op => !op.canInterrupt);
+            
+            // Если высокий приоритет и есть только прерываемые операции
+            if (criticalityLevel >= this.config.criticalityThresholds.fast && 
+                nonInterruptibleOperations.length === 0 && 
+                interruptibleOperations.length > 0) {
+                return {
+                    action: 'immediate',
+                    delayMs: 0,
+                    reason: 'High priority with interruptible operations',
+                    affectedOperations: interruptibleOperations.map(op => op.id)
+                };
+            }
+
             const optimalTime = this.getOptimalSwitchTime();
             const delayMs = Math.max(0, optimalTime - now);
 
@@ -319,7 +340,20 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
         let delayMs = 0;
 
         if (criticalOperations.length > 0) {
-            if (criticalityLevel >= this.config.criticalityThresholds.fast) {
+            // Проверяем прерываемые операции для высокого приоритета
+            const interruptibleOperations = criticalOperations.filter(op => op.canInterrupt);
+            const nonInterruptibleOperations = criticalOperations.filter(op => !op.canInterrupt);
+            
+            // Если высокий приоритет и есть прерываемые операции, уменьшаем задержку
+            if (criticalityLevel >= this.config.criticalityThresholds.normal && interruptibleOperations.length > 0) {
+                if (nonInterruptibleOperations.length === 0) {
+                    // Все операции прерываемые - минимальная задержка
+                    delayMs = 500;
+                } else {
+                    // Смешанные операции - частичная задержка
+                    delayMs = Math.min(2000, this.getAverageOperationRemainingTime() / 2);
+                }
+            } else if (criticalityLevel >= this.config.criticalityThresholds.fast) {
                 delayMs = Math.min(5000, this.getAverageOperationRemainingTime());
             } else if (criticalityLevel >= this.config.criticalityThresholds.normal) {
                 delayMs = Math.min(15000, this.getAverageOperationRemainingTime() * 2);
@@ -330,6 +364,9 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
             // Нет критичных операций, можно переключаться с небольшой задержкой
             delayMs = priority === 'high' ? 1000 : priority === 'normal' ? 2000 : 5000;
         }
+
+        // Ограничиваем максимальной задержкой
+        delayMs = Math.min(delayMs, this.config.maxDelayMs);
 
         return {
             action: 'delayed',
@@ -347,11 +384,12 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
             return;
         }
 
+        logger.info('Starting scheduler for ChannelSwitchManager');
         this.schedulerTimer = setInterval(() => {
             this.processScheduledSwitches();
         }, 1000); // Проверяем каждую секунду
 
-        logger.debug('Switch scheduler started');
+        logger.info('Switch scheduler started');
     }
 
     /**
@@ -375,7 +413,13 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
         }
 
         const now = Date.now();
-        const readySwitches = this._pendingSwitches.filter(s => s.scheduledAt <= now);
+        const readySwitches = this._pendingSwitches.filter(s => s.scheduledAt <= now + 100); // 100ms буфер
+
+        logger.info(`Processing scheduled switches: ${readySwitches.length} ready out of ${this._pendingSwitches.length} total (now: ${now})`);
+        if (this._pendingSwitches.length > 0) {
+            const nextSwitch = this._pendingSwitches[0];
+            logger.info(`Next switch scheduled at: ${nextSwitch!.scheduledAt} (in ${nextSwitch!.scheduledAt - now}ms)`);
+        }
 
         for (const switchRequest of readySwitches) {
             try {
@@ -392,30 +436,18 @@ export class ChannelSwitchManager extends EventEmitter implements IChannelSwitch
      */
     private async executePendingSwitch(switchRequest: PendingSwitchRequest): Promise<void> {
         return this.switchMutex.runWithLock(async () => {
+            logger.info(`Executing pending switch ${switchRequest.id}`);
+            
             // Удаляем из очереди
             const index = this._pendingSwitches.findIndex(s => s.id === switchRequest.id);
             if (index !== -1) {
                 this._pendingSwitches.splice(index, 1);
             }
 
-            // Проверяем, можно ли выполнить переключение сейчас
-            const decision = this.getSwitchDecision(
-                switchRequest.targetVPN,
-                switchRequest.reason,
-                switchRequest.priority
-            );
-
-            if (decision.action === 'immediate' || decision.delayMs <= 1000) {
-                logger.info(`Executing delayed switch ${switchRequest.id} to ${switchRequest.targetVPN.name}`);
-                this.emit('switchExecuted', switchRequest);
-            } else {
-                // Нужно еще подождать
-                switchRequest.scheduledAt = Date.now() + decision.delayMs;
-                this._pendingSwitches.push(switchRequest);
-                this._pendingSwitches.sort((a, b) => a.scheduledAt - b.scheduledAt);
-                
-                logger.debug(`Switch ${switchRequest.id} rescheduled for ${new Date(switchRequest.scheduledAt).toISOString()}`);
-            }
+            // Переключение готово к выполнению по времени - выполняем немедленно
+            logger.info(`Executing delayed switch ${switchRequest.id} to ${switchRequest.targetVPN.name}`);
+            this.emit('delayedSwitch', switchRequest);
+            this.emit('switchExecuted', switchRequest);
         });
     }
 
