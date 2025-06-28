@@ -152,6 +152,19 @@ export interface IVPNManager extends EventEmitter {
     connectToBestVPN(): Promise<void>;
     getStatus(): VPNManagerStatus;
     getConcurrencyStatus(): ConcurrencyStatus;
+    
+    // Методы для работы с отложенным переключением
+    requestDelayedSwitch(
+        targetVPN: VPNConfig, 
+        reason: SwitchReason, 
+        priority: SwitchPriority, 
+        criticalityLevel?: number
+    ): Promise<string>;
+    cancelDelayedSwitch(switchId: string): Promise<boolean>;
+    registerOperation(operation: Partial<ActiveOperation>): Promise<string>;
+    completeOperation(operationId: string): Promise<void>;
+    getDelayedSwitchStatus(): DelayedSwitchStatus;
+    
     readonly currentVPN: VPNConfig | null;
     readonly isRunning: boolean;
     readonly healthChecker: IHealthChecker;
@@ -313,5 +326,99 @@ export interface ConcurrencyStatus {
             readQueue: number;
             writeQueue: number;
         };
+    };
+}
+
+// Типы для отложенного переключения каналов
+export interface DelayedSwitchConfig {
+    enabled: boolean;
+    maxDelayMs: number;
+    criticalityThresholds: {
+        immediate: number;    // Переключение немедленно при критичности >= этого значения
+        fast: number;        // Быстрое переключение (1-5 сек)
+        normal: number;      // Обычное переключение (5-30 сек)
+        slow: number;        // Медленное переключение (30+ сек)
+    };
+    gracePeriodMs: number;   // Период ожидания завершения критичных операций
+}
+
+export interface PendingSwitchRequest {
+    id: string;
+    targetVPN: VPNConfig;
+    reason: SwitchReason;
+    priority: SwitchPriority;
+    requestedAt: number;
+    scheduledAt: number;
+    criticalityLevel: number;
+    canCancel: boolean;
+    metadata?: Record<string, any>;
+}
+
+export interface ActiveOperation {
+    id: string;
+    type: OperationType;
+    criticalityLevel: number;
+    startedAt: number;
+    estimatedDuration: number;
+    canInterrupt: boolean;
+    onComplete?: () => void;
+    onInterrupt?: () => void;
+}
+
+export interface SwitchDecision {
+    action: 'immediate' | 'delayed' | 'postponed' | 'cancelled';
+    delayMs: number;
+    reason: string;
+    affectedOperations: string[];
+    scheduledAt?: number;
+}
+
+export type SwitchReason = 
+    | 'health_check_failed' 
+    | 'user_request' 
+    | 'load_balancing' 
+    | 'maintenance' 
+    | 'emergency' 
+    | 'optimization';
+
+export type SwitchPriority = 'low' | 'normal' | 'high' | 'critical' | 'emergency';
+
+export type OperationType = 
+    | 'http_request' 
+    | 'file_transfer' 
+    | 'streaming' 
+    | 'authentication' 
+    | 'health_check' 
+    | 'configuration_update';
+
+export interface ChannelSwitchManager {
+    readonly isEnabled: boolean;
+    readonly pendingSwitches: PendingSwitchRequest[];
+    readonly activeOperations: ActiveOperation[];
+    
+    requestSwitch(targetVPN: VPNConfig, reason: SwitchReason, priority: SwitchPriority, criticalityLevel?: number): Promise<string>;
+    cancelSwitch(switchId: string): boolean;
+    registerOperation(operation: Omit<ActiveOperation, 'id'>): string;
+    completeOperation(operationId: string): void;
+    interruptOperation(operationId: string): boolean;
+    getOptimalSwitchTime(): number;
+    getSwitchDecision(targetVPN: VPNConfig, reason: SwitchReason, priority: SwitchPriority): SwitchDecision;
+}
+
+export interface DelayedSwitchStatus {
+    isEnabled: boolean;
+    pendingSwitches: PendingSwitchRequest[];
+    activeOperations: ActiveOperation[];
+    nextScheduledSwitch?: {
+        id: string;
+        targetVPN: VPNConfig;
+        scheduledAt: number;
+        timeUntilSwitch: number;
+    };
+    statistics: {
+        totalRequests: number;
+        completedSwitches: number;
+        cancelledSwitches: number;
+        averageDelayMs: number;
     };
 }

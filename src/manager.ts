@@ -5,9 +5,15 @@ import {
     VPNManagerStatus,
     IVPNManager,
     IHealthChecker,
-    ConcurrencyStatus
+    ConcurrencyStatus,
+    DelayedSwitchConfig,
+    DelayedSwitchStatus,
+    SwitchReason,
+    SwitchPriority,
+    ActiveOperation
 } from './types';
 import { HealthChecker } from './healthChecker';
+import { ChannelSwitchManager } from './channelSwitchManager';
 import { logger, delay } from './utils';
 import { AsyncMutex, AsyncSemaphore, AsyncReadWriteLock } from './concurrency';
 
@@ -19,6 +25,7 @@ export class VPNManager extends EventEmitter implements IVPNManager {
     private _currentVPN: VPNConfig | null = null;
     private vpnList: VPNConfig[] = [];
     private _healthChecker: IHealthChecker;
+    private _channelSwitchManager: ChannelSwitchManager | null = null;
     private _isRunning: boolean = false;
     private reconnectAttempts: number = 0;
     private readonly maxReconnectAttempts: number;
@@ -34,10 +41,16 @@ export class VPNManager extends EventEmitter implements IVPNManager {
     // ReadWrite блокировка для списка VPN
     private readonly vpnListLock = new AsyncReadWriteLock();
 
-    constructor(private readonly config: AppConfig) {
+    constructor(private readonly config: AppConfig & { delayedSwitch?: DelayedSwitchConfig }) {
         super();
         this.maxReconnectAttempts = config.maxReconnectAttempts || 3;
         this._healthChecker = new HealthChecker(config);
+        
+        // Инициализируем менеджер отложенного переключения, если он настроен
+        if (config.delayedSwitch) {
+            this._channelSwitchManager = new ChannelSwitchManager(config.delayedSwitch);
+            this.setupDelayedSwitchHandlers();
+        }
     }
 
     /**
@@ -59,6 +72,49 @@ export class VPNManager extends EventEmitter implements IVPNManager {
      */
     get healthChecker(): IHealthChecker {
         return this._healthChecker;
+    }
+
+    /**
+     * Настройка обработчиков событий отложенного переключения
+     */
+    private setupDelayedSwitchHandlers(): void {
+        if (!this._channelSwitchManager) return;
+
+        // Немедленное переключение
+        this._channelSwitchManager.on('immediateSwitch', async (switchRequest) => {
+            logger.info(`Executing immediate switch to ${switchRequest.targetVPN.name}`);
+            try {
+                await this.switchVPN(switchRequest.targetVPN);
+                this._channelSwitchManager!.emit('switchCompleted', switchRequest.id, true);
+            } catch (error) {
+                logger.error(`Immediate switch failed:`, error);
+                this._channelSwitchManager!.emit('switchCompleted', switchRequest.id, false);
+            }
+        });
+
+        // Отложенное переключение
+        this._channelSwitchManager.on('delayedSwitch', async (switchRequest) => {
+            logger.info(`Executing delayed switch to ${switchRequest.targetVPN.name}`);
+            try {
+                await this.switchVPN(switchRequest.targetVPN);
+                this._channelSwitchManager!.emit('switchCompleted', switchRequest.id, true);
+            } catch (error) {
+                logger.error(`Delayed switch failed:`, error);
+                this._channelSwitchManager!.emit('switchCompleted', switchRequest.id, false);
+            }
+        });
+
+        // Отмена переключения
+        this._channelSwitchManager.on('switchCancelled', (switchId, reason) => {
+            logger.info(`Switch ${switchId} cancelled: ${reason}`);
+            this.emit('delayedSwitchCancelled', switchId, reason);
+        });
+
+        // Запланированное переключение
+        this._channelSwitchManager.on('switchScheduled', (switchRequest) => {
+            logger.info(`Switch to ${switchRequest.targetVPN.name} scheduled for ${new Date(switchRequest.scheduledAt)}`);
+            this.emit('delayedSwitchScheduled', switchRequest);
+        });
     }
 
     /**
@@ -291,7 +347,7 @@ export class VPNManager extends EventEmitter implements IVPNManager {
                 return;
             }
             
-            logger.warn(`Current VPN ${vpn.name} is unhealthy, attempting to reconnect...`);
+            logger.warn(`Current VPN ${vpn.name} is unhealthy, attempting recovery...`);
             
             if (this.reconnectAttempts < this.maxReconnectAttempts) {
                 this.reconnectAttempts++;
@@ -304,7 +360,37 @@ export class VPNManager extends EventEmitter implements IVPNManager {
                     
                     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
                         logger.error('Max reconnection attempts reached, switching to another VPN');
-                        await this.connectToBestVPN();
+                        
+                        // Используем отложенное переключение, если доступно
+                        if (this._channelSwitchManager) {
+                            const sortedVPNs = await this.vpnListLock.runWithReadLock(async () => {
+                                return [...this.vpnList]
+                                    .filter(v => v !== vpn)
+                                    .sort((a, b) => a.priority - b.priority);
+                            });
+                            
+                            if (sortedVPNs.length > 0) {
+                                const targetVPN = sortedVPNs[0]!; // Safe because we checked length > 0
+                                logger.info(`Requesting delayed switch to best alternative VPN: ${targetVPN.name}`);
+                                
+                                try {
+                                    await this.requestDelayedSwitch(
+                                        targetVPN,
+                                        'health_check_failed',
+                                        'high',
+                                        80 // Высокий уровень критичности для health check failures
+                                    );
+                                } catch (delayedSwitchError) {
+                                    logger.error('Failed to request delayed switch, falling back to immediate switch:', delayedSwitchError);
+                                    await this.connectToBestVPN();
+                                }
+                            } else {
+                                logger.error('No alternative VPN available');
+                            }
+                        } else {
+                            // Fallback: немедленное переключение
+                            await this.connectToBestVPN();
+                        }
                     }
                 }
             }
@@ -350,5 +436,116 @@ export class VPNManager extends EventEmitter implements IVPNManager {
                 vpnList: this.vpnListLock.getStatus()
             }
         };
+    }
+
+    /**
+     * Запрос отложенного переключения VPN
+     */
+    async requestDelayedSwitch(
+        targetVPN: VPNConfig, 
+        reason: SwitchReason, 
+        priority: SwitchPriority, 
+        criticalityLevel: number = 50
+    ): Promise<string> {
+        if (!this._channelSwitchManager) {
+            throw new Error('Delayed switching is not enabled. Configure delayedSwitch in VPNManager config.');
+        }
+
+        return this._channelSwitchManager.requestSwitch(targetVPN, reason, priority, criticalityLevel);
+    }
+
+    /**
+     * Отмена отложенного переключения
+     */
+    async cancelDelayedSwitch(switchId: string): Promise<boolean> {
+        if (!this._channelSwitchManager) {
+            return false;
+        }
+
+        return this._channelSwitchManager.cancelSwitch(switchId);
+    }
+
+    /**
+     * Регистрация активной операции
+     */
+    async registerOperation(operation: Partial<ActiveOperation>): Promise<string> {
+        if (!this._channelSwitchManager) {
+            throw new Error('Delayed switching is not enabled. Configure delayedSwitch in VPNManager config.');
+        }
+        
+        const fullOperation: Omit<ActiveOperation, 'id'> = {
+            type: operation.type || 'http_request',
+            criticalityLevel: operation.criticalityLevel || 50,
+            startedAt: operation.startedAt || Date.now(),
+            estimatedDuration: operation.estimatedDuration || 5000,
+            canInterrupt: operation.canInterrupt !== undefined ? operation.canInterrupt : true,
+            ...(operation.onComplete && { onComplete: operation.onComplete }),
+            ...(operation.onInterrupt && { onInterrupt: operation.onInterrupt })
+        };
+
+        return this._channelSwitchManager.registerOperation(fullOperation);
+    }
+
+    /**
+     * Завершение операции
+     */
+    async completeOperation(operationId: string): Promise<void> {
+        if (!this._channelSwitchManager) {
+            return;
+        }
+
+        this._channelSwitchManager.completeOperation(operationId);
+    }
+
+    /**
+     * Получение статуса системы отложенного переключения
+     */
+    getDelayedSwitchStatus(): DelayedSwitchStatus {
+        if (!this._channelSwitchManager) {
+            return {
+                isEnabled: false,
+                pendingSwitches: [],
+                activeOperations: [],
+                statistics: {
+                    totalRequests: 0,
+                    completedSwitches: 0,
+                    cancelledSwitches: 0,
+                    averageDelayMs: 0
+                }
+            };
+        }
+
+        const pendingSwitches = this._channelSwitchManager.pendingSwitches;
+        const activeOperations = this._channelSwitchManager.activeOperations;
+        const now = Date.now();
+
+        // Находим ближайшее запланированное переключение
+        const nextSwitch = pendingSwitches
+            .filter(s => s.scheduledAt > now)
+            .sort((a, b) => a.scheduledAt - b.scheduledAt)[0];
+
+        const status: DelayedSwitchStatus = {
+            isEnabled: this._channelSwitchManager.isEnabled,
+            pendingSwitches,
+            activeOperations,
+            statistics: {
+                // TODO: Добавить статистику в ChannelSwitchManager
+                totalRequests: pendingSwitches.length,
+                completedSwitches: 0,
+                cancelledSwitches: 0,
+                averageDelayMs: 0
+            }
+        };
+
+        if (nextSwitch) {
+            status.nextScheduledSwitch = {
+                id: nextSwitch.id,
+                targetVPN: nextSwitch.targetVPN,
+                scheduledAt: nextSwitch.scheduledAt,
+                timeUntilSwitch: nextSwitch.scheduledAt - now
+            };
+        }
+
+        return status;
     }
 }
