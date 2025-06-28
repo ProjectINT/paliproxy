@@ -6,10 +6,12 @@ import {
     IVPNRequester,
     IVPNManager,
     HTTPResponse,
-    BufferConfig
+    BufferConfig,
+    ConcurrencyStatus
 } from './types';
 import { logger } from './utils';
 import { RequestBuffer } from './requestBuffer';
+import { AsyncSemaphore, AsyncMutex } from './concurrency';
 
 /**
  * HTTP клиент для выполнения запросов через активный VPN туннель
@@ -21,6 +23,12 @@ export class VPNRequester implements IVPNRequester {
     private readonly retryDelay: number;
     private readonly requestBuffer: RequestBuffer;
     private isVPNSwitching: boolean = false;
+    
+    // Семафор для ограничения параллельных запросов
+    private readonly maxConcurrentRequests = new AsyncSemaphore(10);
+    
+    // Мьютекс для защиты критических операций
+    private readonly requestProcessingMutex = new AsyncMutex();
 
     constructor(
         private readonly config: AppConfig, 
@@ -56,54 +64,56 @@ export class VPNRequester implements IVPNRequester {
      * Создание базового fetch запроса с настройками
      */
     private async createRequest(config: RequestConfig): Promise<Response> {
-        this.ensureVPNConnection();
+        return this.maxConcurrentRequests.runWithPermit(async () => {
+            this.ensureVPNConnection();
 
-        const url = config.url || '';
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+            const url = config.url || '';
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-        try {
-            const headers: Record<string, string> = {
-                'User-Agent': this.userAgent,
-                ...config.headers
-            };
+            try {
+                const headers: Record<string, string> = {
+                    'User-Agent': this.userAgent,
+                    ...config.headers
+                };
 
-            // Добавляем информацию о текущем VPN в заголовки для отладки
-            const currentVPN = this.vpnManager.currentVPN;
-            if (currentVPN) {
-                headers['X-VPN-Name'] = currentVPN.name;
-            }
-
-            const fetchConfig: RequestInit = {
-                method: config.method || 'GET',
-                headers,
-                signal: controller.signal
-            };
-
-            // Добавляем body если есть данные
-            if (config.body && (config.method === 'POST' || config.method === 'PUT' || config.method === 'PATCH')) {
-                if (typeof config.body === 'object') {
-                    fetchConfig.body = JSON.stringify(config.body);
-                    headers['Content-Type'] = 'application/json';
-                } else {
-                    fetchConfig.body = config.body;
+                // Добавляем информацию о текущем VPN в заголовки для отладки
+                const currentVPN = this.vpnManager.currentVPN;
+                if (currentVPN) {
+                    headers['X-VPN-Name'] = currentVPN.name;
                 }
+
+                const fetchConfig: RequestInit = {
+                    method: config.method || 'GET',
+                    headers,
+                    signal: controller.signal
+                };
+
+                // Добавляем body если есть данные
+                if (config.body && (config.method === 'POST' || config.method === 'PUT' || config.method === 'PATCH')) {
+                    if (typeof config.body === 'object') {
+                        fetchConfig.body = JSON.stringify(config.body);
+                        headers['Content-Type'] = 'application/json';
+                    } else {
+                        fetchConfig.body = config.body;
+                    }
+                }
+
+                logger.debug(`Making HTTP request: ${config.method?.toUpperCase() || 'GET'} ${url}`);
+
+                const response = await fetch(url, fetchConfig);
+                
+                clearTimeout(timeoutId);
+                
+                logger.debug(`HTTP response: ${response.status} ${url}`);
+                
+                return response;
+
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
             }
-
-            logger.debug(`Making HTTP request: ${config.method?.toUpperCase() || 'GET'} ${url}`);
-
-            const response = await fetch(url, fetchConfig);
-            
-            clearTimeout(timeoutId);
-            
-            logger.debug(`HTTP response: ${response.status} ${url}`);
-            
-            return response;
-
-        } catch (error) {
-            clearTimeout(timeoutId);
-            throw error;
-        }
+        });
     }
 
     /**
@@ -285,34 +295,36 @@ export class VPNRequester implements IVPNRequester {
      * Выполнение запроса с автоматическим переключением VPN при неудаче
      */
     async requestWithVPNFallback(requestConfig: RequestConfig): Promise<Response> {
-        const maxVPNAttempts = 3;
-        let currentAttempt = 0;
-        
-        while (currentAttempt < maxVPNAttempts) {
-            try {
-                return await this.request(requestConfig);
-            } catch (error) {
-                currentAttempt++;
-                
-                if (currentAttempt >= maxVPNAttempts) {
-                    logger.error('All VPN attempts failed for request');
-                    throw error;
-                }
-                
-                logger.warn(`Request failed, trying with different VPN (attempt ${currentAttempt}/${maxVPNAttempts})`);
-                
-                // Пытаемся переключиться на другой VPN
+        return this.requestProcessingMutex.runWithLock(async () => {
+            const maxVPNAttempts = 3;
+            let currentAttempt = 0;
+            
+            while (currentAttempt < maxVPNAttempts) {
                 try {
-                    await this.vpnManager.connectToBestVPN();
-                    await this.delay(2000); // Ждем стабилизации соединения
-                } catch (vpnError) {
-                    logger.error('Failed to switch VPN:', (vpnError as Error).message);
-                    throw error; // Возвращаем оригинальную ошибку запроса
+                    return await this.request(requestConfig);
+                } catch (error) {
+                    currentAttempt++;
+                    
+                    if (currentAttempt >= maxVPNAttempts) {
+                        logger.error('All VPN attempts failed for request');
+                        throw error;
+                    }
+                    
+                    logger.warn(`Request failed, trying with different VPN (attempt ${currentAttempt}/${maxVPNAttempts})`);
+                    
+                    // Пытаемся переключиться на другой VPN
+                    try {
+                        await this.vpnManager.connectToBestVPN();
+                        await this.delay(2000); // Ждем стабилизации соединения
+                    } catch (vpnError) {
+                        logger.error('Failed to switch VPN:', (vpnError as Error).message);
+                        throw error; // Возвращаем оригинальную ошибку запроса
+                    }
                 }
             }
-        }
-        
-        throw new Error('Unexpected error in VPN fallback');
+            
+            throw new Error('Unexpected error in VPN fallback');
+        });
     }
 
     /**
@@ -368,7 +380,18 @@ export class VPNRequester implements IVPNRequester {
             retryDelay: this.retryDelay,
             userAgent: this.userAgent,
             currentVPN: this.vpnManager.currentVPN?.name || 'none',
-            vpnManagerRunning: this.vpnManager.isRunning
+            vpnManagerRunning: this.vpnManager.isRunning,
+            concurrency: {
+                maxConcurrentRequests: {
+                    available: this.maxConcurrentRequests.getAvailablePermits(),
+                    total: 10,
+                    queue: this.maxConcurrentRequests.getQueueSize()
+                },
+                requestProcessingMutex: {
+                    locked: this.requestProcessingMutex.isLocked(),
+                    queue: this.requestProcessingMutex.getQueueSize()
+                }
+            }
         };
     }
 

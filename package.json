@@ -18,6 +18,7 @@
     "example:minimal": "tsx example/usage.ts minimal",
     "example:serverless-demo": "tsx example/serverless.ts",
     "example:buffering": "tsx example/buffering-demo.ts",
+    "example:race-conditions": "tsx example/race-conditions-demo.ts",
     "example:native": "node --import=tsx/esm example/example.ts",
     "example:compiled": "npm run build && node dist/example/example.js",
     "test": "tsx test-tsx.ts",

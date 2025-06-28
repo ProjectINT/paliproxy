@@ -151,6 +151,7 @@ export interface IVPNManager extends EventEmitter {
     switchVPN(vpn: VPNConfig): Promise<void>;
     connectToBestVPN(): Promise<void>;
     getStatus(): VPNManagerStatus;
+    getConcurrencyStatus(): ConcurrencyStatus;
     readonly currentVPN: VPNConfig | null;
     readonly isRunning: boolean;
     readonly healthChecker: IHealthChecker;
@@ -282,5 +283,35 @@ export interface BufferConfig {
         high: number;
         normal: number;
         low: number;
+    };
+}
+
+// Типы для управления конкурентностью и синхронизации
+export interface ConcurrencyStatus {
+    mutexes: {
+        vpnSwitching: boolean;
+        configLoading: boolean;
+        healthChecking: boolean;
+        requestProcessing: boolean;
+    };
+    semaphores: {
+        maxConcurrentRequests: {
+            available: number;
+            total: number;
+            queue: number;
+        };
+        maxVPNConnections: {
+            available: number;
+            total: number;
+            queue: number;
+        };
+    };
+    locks: {
+        vpnList: {
+            readers: number;
+            writers: number;
+            readQueue: number;
+            writeQueue: number;
+        };
     };
 }
