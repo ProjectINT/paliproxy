@@ -1,6 +1,14 @@
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import https from 'https';
 
+// Import ProxyBase type
+type ProxyBase = {
+    ip: string;
+    port: number;
+    user: string;
+    pass: string;
+};
+
 const HEALTH_CHECK_URL = process.env.HEALTH_CHECK_URL || 'https://httpbin.org/ip';
 const timeout = parseInt(process.env.TIMEOUT || '5000', 10);
 
