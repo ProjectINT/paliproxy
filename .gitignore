@@ -60,3 +60,6 @@ Thumbs.db
 
 # proxies
 proxies-list.ts
+
+# Logs
+logs/
