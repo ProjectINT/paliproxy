@@ -13,12 +13,6 @@ dist/
 # TypeScript cache
 *.tsbuildinfo
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
@@ -64,11 +58,5 @@ jspm_packages/
 ehthumbs.db
 Thumbs.db
 
-# VPN configs (sensitive data)
-configs/
-*.ovpn
-*.conf
-
-# Logs
-logs
-*.log
+# proxies
+proxies-list.ts

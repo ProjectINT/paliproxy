@@ -6,39 +6,7 @@
   "types": "src/types.ts",
   "scripts": {
     "build": "tsc",
-    "start": "tsx src/index.ts",
-    "start:native": "node --import=tsx/esm src/index.ts",
-    "start:compiled": "npm run build && node dist/index.js",
-    "dev": "tsx watch src/index.ts",
-    "dev:native": "node --import=tsx/esm --watch src/index.ts",
-    "example": "tsx example/example.ts",
-    "example:simple": "tsx example/simple.ts",
-    "example:usage": "tsx example/usage.ts",
-    "example:serverless": "tsx example/usage.ts serverless",
-    "example:minimal": "tsx example/usage.ts minimal",
-    "example:serverless-demo": "tsx example/serverless.ts",
-    "example:buffering": "tsx example/buffering-demo.ts",
-    "example:race-conditions": "tsx example/race-conditions-demo.ts",
-    "example:delayed-switching": "tsx example/delayed-switching-demo.ts",
-    "example:vpn-connection": "tsx example/vpn-connection-demo.ts",
-    "example:file-loading": "tsx example/file-loading-demo.ts",
-    "example:native": "node --import=tsx/esm example/example.ts",
-    "example:compiled": "npm run build && node dist/example/example.js",
-    "test": "tsx src/tests/all-tests.ts",
-    "test:all": "tsx src/tests/all-tests.ts all",
-    "test:quick": "tsx src/tests/all-tests.ts quick",
-    "test:manager": "tsx src/tests/all-tests.ts component manager",
-    "test:healthchecker": "tsx src/tests/all-tests.ts component healthchecker",
-    "test:channelswitch": "tsx src/tests/all-tests.ts component channelswitch",
-    "test:concurrency": "tsx src/tests/all-tests.ts component concurrency",
-    "test:integration": "tsx src/tests/all-tests.ts component integration",
-    "test:delayed-switching": "tsx src/tests/delayed-switching.test.ts",
-    "test:help": "tsx src/tests/all-tests.ts help",
-    "check-env": "node check-env.js",
-    "clean": "rm -rf dist",
-    "lint": "eslint . --ext .ts,.js",
-    "lint:fix": "eslint . --ext .ts,.js --fix",
-    "lint:check": "eslint . --ext .ts,.js --max-warnings 0"
+    "dev": "tsx watch src/index.ts"
   },
   "keywords": [
     "vpn",
@@ -49,7 +17,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^16.3.0"
+    "dotenv": "^16.3.0",
+    "socks-proxy-agent": "^8.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",

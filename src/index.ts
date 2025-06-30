@@ -1,193 +1,97 @@
 #!/usr/bin/env node
-
-import { VPNManager } from './manager';
-import { VPNRequester } from './requester';
-import configManager from './config';
-import { logger } from './utils';
-import { AppConfig, RequestConfig, VPNConfig } from './types';
+import { testProxy } from './utils/testProxy';
+// import { proxiesList } from '../proxies-list';
+import { errorCodes } from './utils/errorCodes';
+import { logger as innerLogger, SeverityLevel } from './utils/logger/logger';
 
 /**
- * Главный класс PaliVPN
- * Предоставляет простой интерфейс для работы с VPN и выполнения запросов
+ * PaliProxy
  */
-export class PaliVPN {
-    private vpnManager: VPNManager;
-    private requester: VPNRequester;
-    private config: AppConfig;
-    private _isInitialized: boolean = false;
 
-    constructor(config?: Partial<AppConfig>, vpnConfigs?: VPNConfig[]) {
-        // Загружаем конфигурацию
-        this.config = config ? { ...configManager.get(), ...config } : configManager.get();
+const HEALTH_CHECK_INTERVAL = parseInt(process.env.HEALTH_CHECK_INTERVAL || '5000', 10);
+export class PaliProxy {
+    private proxies: readonly ProxyBase[] = [];
+    private liveProxies: ProxyConfig[] = [];
+    private run: boolean = false;
+
+    constructor(proxies: ProxyBase[], sentryLogger: any) {
+        // Initialize logger with application tags
+        const logger = sentryLogger || innerLogger;
         
-        // Если переданы VPN конфигурации, добавляем их в конфиг
-        if (vpnConfigs && vpnConfigs.length > 0) {
-            this.config.vpnConfigs = vpnConfigs;
-        }
+        logger.setTags({
+            component: 'PaliProxy',
+            version: '1.0.0'
+        });
         
-        // Создаем менеджер VPN соединений
-        this.vpnManager = new VPNManager(this.config);
+        logger.captureMessage('Initializing PaliProxy');
+        logger.setExtra('proxyCount', proxies.length);
         
-        // Создаем HTTP клиент
-        this.requester = new VPNRequester(this.config, this.vpnManager);
-    }
-
-    /**
-     * Инициализация VPN клиента
-     */
-    async initialize(): Promise<void> {
-        if (this._isInitialized) {
-            return;
+        if (!proxies || proxies.length === 0) {
+            logger.captureMessage('No proxies provided to constructor', SeverityLevel.Error);
+            throw new Error('No proxies provided');
         }
 
-        try {
-            logger.info('Initializing PaliVPN client...');
-            
-            await this.vpnManager.initialize();
-            await this.vpnManager.start();
-            
-            this._isInitialized = true;
-            logger.info('PaliVPN client initialized successfully');
-        } catch (error) {
-            logger.error('Failed to initialize PaliVPN client:', error);
-            throw error;
-        }
+        this.proxies = Object.freeze(proxies.map((p) => ({
+            ip: p.ip,
+            port: p.port,
+            user: p.user,
+            pass: p.pass,
+        })));
+        
+        this.liveProxies = this.proxies.map(
+            (proxy) => ({ ...proxy, alive: true, latency: 0 } as ProxyConfig)
+        ).filter(proxy => proxy.alive);
     }
 
-    /**
-     * Выполнение HTTP запроса через VPN
-     */
-    async request(config: RequestConfig): Promise<Response> {
-        if (!this._isInitialized) {
-            await this.initialize();
+    async initialize(proxies: ProxyBase[]): Promise<void> {
+        if (!proxies || proxies.length === 0) {
+            throw new Error('No proxies provided');
         }
 
-        return this.requester.request(config);
+        this.initLiveProxies();
+        this.run = true;
+        this.loopRangeProxies();
     }
 
-    /**
-     * Остановка VPN клиента
-     */
-    async stop(): Promise<void> {
-        if (!this._isInitialized) {
-            return;
+    loopRangeProxies(): void {
+        setInterval(() => {
+            if (this.run) {
+                this.rangeProxies();
+            }
+        }, HEALTH_CHECK_INTERVAL);
+    }
+
+    initLiveProxies(): void {
+        this.liveProxies = this.proxies.map(
+            (proxy) => ({ ...proxy, alive: true, latency: 0 } as ProxyConfig)
+        ).filter(proxy => proxy.alive);
+    }
+
+    async rangeProxies() {
+        if (this.proxies.length === 0) {
+            throw new Error('No proxies initialized');
         }
 
-        try {
-            logger.info('Stopping PaliVPN client...');
-            await this.vpnManager.stop();
-            this._isInitialized = false;
-            logger.info('PaliVPN client stopped successfully');
-        } catch (error) {
-            logger.error('Failed to stop PaliVPN client:', error);
-            throw error;
+        const withLatency: ProxyConfig[] = await Promise.all(this.proxies.map(async (proxy, index) => {
+            const { latency, alive } = await testProxy(proxy);
+            return { ...proxy, alive, latency };
+        }));
+
+        withLatency.sort((a, b) => a.latency - b.latency);
+
+        const aliveRangedProxies = withLatency.filter(proxy => proxy.alive);
+        if (aliveRangedProxies.length === 0) {
+            throw new Error('No alive proxies found');
         }
-    }
 
-    /**
-     * Получение статуса VPN соединения
-     */
-    get isConnected(): boolean {
-        return this.vpnManager.currentVPN !== null;
+        this.liveProxies = aliveRangedProxies;
     }
-
-    /**
-     * Получение текущего VPN
-     */
-    get currentVPN() {
-        return this.vpnManager.currentVPN;
-    }
-
-    /**
-     * Получение VPN менеджера для расширенного использования
-     */
-    get manager(): VPNManager {
-        return this.vpnManager;
-    }
-
-    /**
-     * Получение HTTP клиента для расширенного использования
-     */
-    get httpClient(): VPNRequester {
-        return this.requester;
-    }
-
-    /**
-     * Получение VPN менеджера для прямого доступа к функциям управления VPN
-     */
-    getVPNManager(): VPNManager {
-        return this.vpnManager;
-    }
-
-    /**
-     * Получение HTTP клиента для прямого доступа к функциям запросов
-     */
-    getRequester(): VPNRequester {
-        return this.requester;
-    }
-
-    /**
-     * Создание экземпляра PaliVPN с предопределенными VPN конфигурациями
-     * Полезно для serverless функций, где не нужно читать файловую систему
-     */
-    static withVPNConfigs(vpnConfigs: VPNConfig[], config?: Partial<AppConfig>): PaliVPN {
-        return new PaliVPN(config, vpnConfigs);
-    }
-}
-
-/**
- * Основная точка входа в приложение (legacy)
- * Инициализирует VPN клиент с конфигурацией
- */
-async function main(): Promise<void> {
-    const client = new PaliVPN();
     
-    try {
-        await client.initialize();
+    async request(config: RequestConfig) {
         
-        // Обработка сигналов для корректного завершения
-        process.on('SIGINT', async () => {
-            logger.info('Received SIGINT, shutting down gracefully...');
-            await client.stop();
-            process.exit(0);
-        });
-        
-        process.on('SIGTERM', async () => {
-            logger.info('Received SIGTERM, shutting down gracefully...');
-            await client.stop();
-            process.exit(0);
-        });
-        
-        process.on('unhandledRejection', (reason, promise) => {
-            logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-            process.exit(1);
-        });
-        
-        process.on('uncaughtException', (error) => {
-            logger.error('Uncaught Exception:', error);
-            process.exit(1);
-        });
-        
-    } catch (error) {
-        logger.error('Failed to start PaliVPN client:', error);
-        process.exit(1);
+    }
+
+    stop() {
+        this.run = false;
     }
 }
-
-// Запускаем приложение только если это основной модуль
-if (require.main === module) {
-    main().catch(error => {
-        console.error('Unhandled error:', error);
-        process.exit(1);
-    });
-}
-
-// Экспорты для использования как библиотеки
-export { main };
-export { PaliVPN as default };
-export { VPNManager } from './manager';
-export { HealthChecker } from './healthChecker';
-export { VPNRequester } from './requester';
-export { configManager } from './config';
-export { logger } from './utils';
-export * from './types';
