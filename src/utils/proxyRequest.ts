@@ -2,6 +2,7 @@
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import https from 'https';
 import http from 'http';
+import { errorCodes, errorMessages } from './errorCodes';
 
 export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): Promise<any> {
     const { url, method = 'GET', headers = {}, body } = config;
@@ -27,12 +28,21 @@ export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): P
             });
         });
         
-        req.on('error', reject);
+        req.on('error', (err) => {
+          reject({
+            message: errorMessages[errorCodes.REQUEST_FAILED],
+            error: err.message,
+            code: (err as any).code,
+            stack: err.stack,
+            config,
+            proxy,
+          });
+        });
 
         req.setTimeout(10000, () => {
           req.destroy();
           reject({
-            message: 'Request timed out',
+            message: errorMessages[errorCodes.REQUEST_TIMEOUT],
             config,
             proxy,
           });

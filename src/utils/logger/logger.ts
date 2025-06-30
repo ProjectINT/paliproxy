@@ -199,27 +199,12 @@ class FileLogger implements ISentryLogger {
 }
 
 // Logger factory function
-export function createLogger(sentryDsn?: string): ISentryLogger {
-  // Try to use Sentry if available and DSN is provided
-  if (sentryDsn) {
-    try {
-      // This would be the actual Sentry import if available
-      // const Sentry = require('@sentry/node');
-      // Sentry.init({ dsn: sentryDsn });
-      // return Sentry;
-      
-      // For now, we'll use the file logger since Sentry is not installed
-      console.warn('Sentry DSN provided but Sentry not installed, falling back to file logger');
-    } catch (error) {
-      console.warn('Failed to initialize Sentry, falling back to file logger:', error);
-    }
-  }
-
+export function createLogger(): ISentryLogger {
   // Fallback to file logger
   return new FileLogger();
 }
 
 // Default logger instance
-export const logger = createLogger(process.env.SENTRY_DSN);
+export const logger = createLogger();
 
 export default logger;

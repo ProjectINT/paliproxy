@@ -5,18 +5,19 @@ import { errorCodes, errorMessages } from './utils/errorCodes';
 import { logger as innerLogger, SeverityLevel } from './utils/logger/logger';
 import { proxyRequest } from './utils/proxyRequest';
 
+import { defaultPaliProxyConfig } from '../constants';
+
 /**
  * PaliProxy
  */
-
-const HEALTH_CHECK_INTERVAL = parseInt(process.env.HEALTH_CHECK_INTERVAL || '5000', 10);
 export class PaliProxy {
-    private proxies: readonly ProxyBase[] = [];
+    private readonly proxies: readonly ProxyBase[] = [];
     private liveProxies: ProxyConfig[] = [];
     private run: boolean = false;
     private logger: any;
+    private readonly config: PaliProxyConfig = {};
 
-    constructor(proxies: ProxyBase[], sentryLogger: any) {
+    constructor(proxies: ProxyBase[], { sentryLogger, config }: { sentryLogger?: any, config?: PaliProxyConfig } = {}) {
         // Initialize logger with application tags
         this.logger = sentryLogger || innerLogger;
 
@@ -43,6 +44,11 @@ export class PaliProxy {
         this.liveProxies = this.proxies.map(
             (proxy) => ({ ...proxy, alive: true, latency: 0 } as ProxyConfig)
         ).filter(proxy => proxy.alive);
+
+        this.config = Object.freeze({
+            ...defaultPaliProxyConfig,
+            ...config,
+        });
     }
 
     initialize(proxies: ProxyBase[]): PaliProxy {
@@ -62,7 +68,7 @@ export class PaliProxy {
             if (this.run) {
                 this.rangeProxies();
             }
-        }, HEALTH_CHECK_INTERVAL);
+        }, this.config.healthCheckInterval);
     }
 
     initLiveProxies(): void {
@@ -85,21 +91,36 @@ export class PaliProxy {
         withLatency.sort((a, b) => a.latency - b.latency);
 
         const aliveRangedProxies = withLatency.filter(proxy => proxy.alive);
+        
         if (aliveRangedProxies.length === 0) {
             throw new Error(errorMessages[errorCodes.NO_ALIVE_PROXIES]);
         }
 
         this.liveProxies = aliveRangedProxies;
     }
-    
-    async request(config: RequestConfig) {
+
+    async proxyRequestWithRetry(config: RequestConfig): Promise<any> {
+        const proxyState = {
+            onErrorRetries: 0,
+            onTimeoutRetries: 0,
+        }
+
         const proxy = this.liveProxies[0];
+
         if (!proxy) {
             const err = new Error(errorMessages[errorCodes.NO_ALIVE_PROXIES]);
             this.logger.captureException(err);
             throw err;
         }
-        return proxyRequest(config, proxy);
+
+        proxyRequest(config, proxy)
+            .catch((error) => {
+                this.logger.captureException(error);
+            });
+    }
+    
+    async request(config: RequestConfig) {
+        return this.proxyRequestWithRetry(config);
     }
 
     stop() {

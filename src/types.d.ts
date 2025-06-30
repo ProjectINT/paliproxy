@@ -14,4 +14,14 @@ type RequestConfig = {
   body?: any;
 };
 
+type PaliProxyConfig = {
+  onErrorRetries?: number;
+  onTimeoutRetries?: number;
+  maxTimeout?: number;
+  healthCheckUrl?: string;
+  healthCheckInterval?: number;
+  timeout?: number;
+  sentryLogger?: any;
+}
+
 type ProxyBase = Omit<ProxyConfig, 'alive' | 'latency'>;
