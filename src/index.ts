@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { testProxy } from './utils/testProxy';
 // import { proxiesList } from '../proxies-list';
-import { errorCodes } from './utils/errorCodes';
+import { errorCodes, errorMessages } from './utils/errorCodes';
 import { logger as innerLogger, SeverityLevel } from './utils/logger/logger';
+import { proxyRequest } from './utils/proxyRequest';
 
 /**
  * PaliProxy
@@ -73,7 +74,7 @@ export class PaliProxy {
     async rangeProxies() {
         if (this.proxies.length === 0) {
 
-            throw new Error('No proxies initialized');
+            throw new Error(errorMessages[errorCodes.NO_PROXIES]);
         }
 
         const withLatency: ProxyConfig[] = await Promise.all(this.proxies.map(async (proxy, index) => {
@@ -85,14 +86,20 @@ export class PaliProxy {
 
         const aliveRangedProxies = withLatency.filter(proxy => proxy.alive);
         if (aliveRangedProxies.length === 0) {
-            throw new Error('No alive proxies found');
+            throw new Error(errorMessages[errorCodes.NO_ALIVE_PROXIES]);
         }
 
         this.liveProxies = aliveRangedProxies;
     }
     
     async request(config: RequestConfig) {
-        
+        const proxy = this.liveProxies[0];
+        if (!proxy) {
+            const err = new Error(errorMessages[errorCodes.NO_ALIVE_PROXIES]);
+            this.logger.captureException(err);
+            throw err;
+        }
+        return proxyRequest(config, proxy);
     }
 
     stop() {
