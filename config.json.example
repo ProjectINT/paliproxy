@@ -1,9 +1,0 @@
-{
-  "vpnConfigsPath": "./configs",
-  "defaultVpnTimeout": 45000,
-  "maxReconnectAttempts": 5,
-  "healthCheckInterval": 30000,
-  "healthCheckUrl": "https://httpbin.org/ip",
-  "logLevel": "debug",
-  "userAgent": "PaliVPN/1.0.0 Custom"
-}
