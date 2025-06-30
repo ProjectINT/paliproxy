@@ -13,21 +13,22 @@ export class PaliProxy {
     private proxies: readonly ProxyBase[] = [];
     private liveProxies: ProxyConfig[] = [];
     private run: boolean = false;
+    private logger: any;
 
     constructor(proxies: ProxyBase[], sentryLogger: any) {
         // Initialize logger with application tags
-        const logger = sentryLogger || innerLogger;
-        
-        logger.setTags({
+        this.logger = sentryLogger || innerLogger;
+
+        this.logger.setTags({
             component: 'PaliProxy',
             version: '1.0.0'
         });
-        
-        logger.captureMessage('Initializing PaliProxy');
-        logger.setExtra('proxyCount', proxies.length);
-        
+
+        this.logger.captureMessage('Initializing PaliProxy');
+        this.logger.setExtra('proxyCount', proxies.length);
+
         if (!proxies || proxies.length === 0) {
-            logger.captureMessage('No proxies provided to constructor', SeverityLevel.Error);
+            this.logger.captureMessage(errorCodes.NO_PROXIES, SeverityLevel.Error);
             throw new Error('No proxies provided');
         }
 
@@ -43,14 +44,16 @@ export class PaliProxy {
         ).filter(proxy => proxy.alive);
     }
 
-    async initialize(proxies: ProxyBase[]): Promise<void> {
+    initialize(proxies: ProxyBase[]): PaliProxy {
         if (!proxies || proxies.length === 0) {
             throw new Error('No proxies provided');
         }
 
-        this.initLiveProxies();
         this.run = true;
+        this.initLiveProxies();
         this.loopRangeProxies();
+
+        return this;
     }
 
     loopRangeProxies(): void {
@@ -69,6 +72,7 @@ export class PaliProxy {
 
     async rangeProxies() {
         if (this.proxies.length === 0) {
+
             throw new Error('No proxies initialized');
         }
 
