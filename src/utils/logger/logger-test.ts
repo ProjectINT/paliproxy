@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { logger, SeverityLevel } from './logger';
+import { logger } from './logger';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
@@ -192,53 +192,48 @@ async function demoLogger() {
   });
 
   // Basic logging
-  await logger.captureMessage('Demo application started', SeverityLevel.Info);
+  await logger.captureMessage('Demo application started', 'info');
 
   // Add breadcrumbs
   logger.addBreadcrumb({
     message: 'User initiated demo',
     category: 'user_action',
-    level: SeverityLevel.Info
+    level: 'info'
   });
 
   // Simulate some application flow
   logger.setExtra('step', 1);
-  await logger.captureMessage('Initializing components', SeverityLevel.Info);
+  await logger.captureMessage('Initializing components', 'info');
 
   logger.addBreadcrumb({
     message: 'Components initialized',
     category: 'system',
-    level: SeverityLevel.Info
+    level: 'info'
   });
 
   // Simulate a warning
   logger.setExtra('step', 2);
-  await logger.captureMessage('Configuration file not found, using defaults', SeverityLevel.Warning);
+  await logger.captureMessage('Configuration file not found, using defaults', 'warning');
 
   // Simulate an error with context
-  logger.withScope(async (scope) => {
-    scope.setTag('operation', 'network_test');
-    scope.setExtra('attempt', 1);
-    scope.addBreadcrumb({
-      message: 'Attempting network connection',
-      category: 'network',
-      level: SeverityLevel.Info
-    });
-
-    // Simulate exception
-    try {
-      throw new Error('Network timeout after 5 seconds');
-    } catch (error) {
-      await logger.captureException(error as Error, {
-        timeout: 5000,
-        server: '192.168.1.1',
-        port: 8080
-      });
-    }
+  // Вместо withScope используем напрямую методы логгера
+  logger.setTag('operation', 'network_test');
+  logger.setExtra('attempt', 1);
+  logger.addBreadcrumb({
+    message: 'Attempting network connection',
+    category: 'network',
+    level: 'info'
   });
 
+  // Simulate exception
+  try {
+    throw new Error('Network timeout after 5 seconds');
+  } catch (error) {
+    await logger.captureException(error as Error);
+  }
+
   // Final message
-  await logger.captureMessage('Demo completed', SeverityLevel.Info);
+  await logger.captureMessage('Demo completed', 'info');
 
   console.log('✅ Logger Demo Completed');
   console.log('📝 Logs written to ./logs/app.log');

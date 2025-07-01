@@ -1,57 +1,37 @@
 import { existsSync, mkdirSync } from 'fs';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-
-// Sentry-compatible interfaces
-export interface SentryUser {
-  id?: string;
-  username?: string;
-  email?: string;
-  ip_address?: string;
-  [key: string]: any;
-}
-
-export interface SentryContext {
-  [key: string]: any;
-}
-
-export interface SentryExtra {
-  [key: string]: any;
-}
-
-export interface SentryTags {
-  [key: string]: string;
-}
-
-export enum SeverityLevel {
-  Fatal = 'fatal',
-  Error = 'error',
-  Warning = 'warning',
-  Info = 'info',
-  Debug = 'debug',
-}
+import type {
+  SeverityLevel,
+  Breadcrumb,
+  User,
+  EventHint,
+  CaptureContext,
+  ScopeContext,
+  ScopeData
+} from '@sentry/core';
 
 export interface ISentryLogger {
-  captureException(exception: Error, context?: SentryContext): Promise<string>;
-  captureMessage(message: string, level?: SeverityLevel): Promise<string>;
-  setUser(user: SentryUser): void;
+  captureException(exception: Error, hint?: EventHint, context?: CaptureContext): Promise<string>;
+  captureMessage(message: string, level?: SeverityLevel, hint?: EventHint, context?: CaptureContext): Promise<string>;
+  setUser(user: User): void;
   setTag(key: string, value: string): void;
-  setTags(tags: SentryTags): void;
-  setExtra(key: string, value: any): void;
-  setExtras(extras: SentryExtra): void;
-  setContext(name: string, context: SentryContext): void;
-  addBreadcrumb(breadcrumb: { message: string; level?: SeverityLevel; category?: string; data?: any }): void;
-  withScope(callback: (scope: any) => void): void;
+  setTags(tags: Record<string, string>): void;
+  setExtra(key: string, value: unknown): void;
+  setExtras(extras: Record<string, unknown>): void;
+  setContext(name: string, context: ScopeContext): void;
+  addBreadcrumb(breadcrumb: Breadcrumb): void;
+  withScope(callback: (scope: ScopeData) => void): void;
 }
 
 class FileLogger implements ISentryLogger {
   private logsDir: string;
   private logFile: string;
-  private user: SentryUser | null = null;
-  private tags: SentryTags = {};
-  private extras: SentryExtra = {};
-  private contexts: { [name: string]: SentryContext } = {};
-  private breadcrumbs: Array<{ message: string; level?: SeverityLevel; category?: string; data?: any; timestamp: Date }> = [];
+  private user: User | null = null;
+  private tags: Record<string, string> = {};
+  private extras: Record<string, unknown> = {};
+  private contexts: Record<string, ScopeContext> = {};
+  private breadcrumbs: Breadcrumb[] = [];
   private maxLogFileSize: number = 5 * 1024 * 1024; // 5 MB
 
   constructor(logsDir: string = './logs') {
@@ -66,7 +46,7 @@ class FileLogger implements ISentryLogger {
     }
   }
 
-  private formatLogEntry(level: SeverityLevel, message: string, data?: any): string {
+  private formatLogEntry(level: SeverityLevel | string, message: string, data?: unknown): string {
     const timestamp = new Date().toISOString();
     const logEntry = {
       timestamp,
@@ -100,28 +80,25 @@ class FileLogger implements ISentryLogger {
     }
   }
 
-  async captureException(exception: Error, context?: SentryContext): Promise<string> {
+  async captureException(exception: Error, _hint?: EventHint, _context?: CaptureContext): Promise<string> {
     const errorData = {
       name: exception.name,
       message: exception.message,
       stack: exception.stack,
-      context
+      context: _context
     };
-
-    const logEntry = this.formatLogEntry(SeverityLevel.Error, `Exception: ${exception.message}`, errorData);
+    const logEntry = this.formatLogEntry('error', `Exception: ${exception.message}`, errorData);
     await this.writeLogAsync(logEntry);
-
     return this.generateEventId();
   }
 
-  async captureMessage(message: string, level: SeverityLevel = SeverityLevel.Info): Promise<string> {
+  async captureMessage(message: string, level: SeverityLevel | string = 'info', _hint?: EventHint, _context?: CaptureContext): Promise<string> {
     const logEntry = this.formatLogEntry(level, message);
     await this.writeLogAsync(logEntry);
-
     return this.generateEventId();
   }
 
-  setUser(user: SentryUser): void {
+  setUser(user: User): void {
     this.user = user;
   }
 
@@ -129,82 +106,65 @@ class FileLogger implements ISentryLogger {
     this.tags[key] = value;
   }
 
-  setTags(tags: SentryTags): void {
+  setTags(tags: Record<string, string>): void {
     this.tags = { ...this.tags, ...tags };
   }
 
-  setExtra(key: string, value: any): void {
+  setExtra(key: string, value: unknown): void {
     this.extras[key] = value;
   }
 
-  setExtras(extras: SentryExtra): void {
+  setExtras(extras: Record<string, unknown>): void {
     this.extras = { ...this.extras, ...extras };
   }
 
-  setContext(name: string, context: SentryContext): void {
+  setContext(name: string, context: ScopeContext): void {
     this.contexts[name] = context;
   }
 
-  addBreadcrumb(breadcrumb: { message: string; level?: SeverityLevel; category?: string; data?: any }): void {
+  addBreadcrumb(breadcrumb: Breadcrumb): void {
     this.breadcrumbs.push({
       ...breadcrumb,
-      timestamp: new Date()
+      timestamp: Math.floor(Date.now() / 1000) as number
     });
-
-    // Keep only last 100 breadcrumbs to prevent memory issues
     if (this.breadcrumbs.length > 100) {
       this.breadcrumbs = this.breadcrumbs.slice(-100);
     }
   }
 
-  withScope(callback: (scope: any) => void): void {
-    // Create a temporary scope with current state
-    const scope = {
-      setUser: (user: SentryUser) => this.setUser(user),
-      setTag: (key: string, value: string) => this.setTag(key, value),
-      setTags: (tags: SentryTags) => this.setTags(tags),
-      setExtra: (key: string, value: any) => this.setExtra(key, value),
-      setExtras: (extras: SentryExtra) => this.setExtras(extras),
-      setContext: (name: string, context: SentryContext) => this.setContext(name, context),
-      addBreadcrumb: (breadcrumb: any) => this.addBreadcrumb(breadcrumb)
-    };
-
-    callback(scope);
+  withScope(callback: (scope: ScopeData) => void): void {
+    callback({} as ScopeData);
   }
 
   private generateEventId(): string {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   }
 
-  // Additional utility methods
-  async info(message: string, data?: any): Promise<string> {
-    return this.captureMessage(message, SeverityLevel.Info);
+  async info(message: string, _data?: unknown): Promise<string> {
+    return this.captureMessage(message, 'info');
   }
 
-  async warn(message: string, data?: any): Promise<string> {
-    return this.captureMessage(message, SeverityLevel.Warning);
+  async warn(message: string, _data?: unknown): Promise<string> {
+    return this.captureMessage(message, 'warning');
   }
 
-  async error(message: string, data?: any): Promise<string> {
-    return this.captureMessage(message, SeverityLevel.Error);
+  async error(message: string, _data?: unknown): Promise<string> {
+    return this.captureMessage(message, 'error');
   }
 
-  async debug(message: string, data?: any): Promise<string> {
-    return this.captureMessage(message, SeverityLevel.Debug);
+  async debug(message: string, _data?: unknown): Promise<string> {
+    return this.captureMessage(message, 'debug');
   }
 
-  async fatal(message: string, data?: any): Promise<string> {
-    return this.captureMessage(message, SeverityLevel.Fatal);
+  async fatal(message: string, _data?: unknown): Promise<string> {
+    return this.captureMessage(message, 'fatal');
   }
 }
 
-// Logger factory function
 export function createLogger(): ISentryLogger {
-  // Fallback to file logger
   return new FileLogger();
 }
 
-// Default logger instance
 export const logger = createLogger();
 
 export default logger;

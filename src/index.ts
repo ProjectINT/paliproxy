@@ -2,21 +2,24 @@
 import { testProxy } from './utils/testProxy';
 // import { proxiesList } from '../proxies-list';
 import { errorCodes, errorMessages } from './utils/errorCodes';
-import { logger as innerLogger, SeverityLevel } from './utils/logger/logger';
+import { logger as innerLogger, ISentryLogger } from './utils/logger/logger';
 import { proxyRequest } from './utils/proxyRequest';
+import type { Breadcrumb } from '@sentry/core';
 
 import { defaultProxyMangerConfig } from '../constants';
 
-const addBreadcrumb = (logger: any, { config, proxy, errorCode }: ExceptionData) => logger.addBreadcrumb({
+import { generateSnowflakeId } from './utils/snowflakeId/index';
+
+const addBreadcrumb = (logger: ISentryLogger, { config, proxy, errorCode }: ExceptionData) => logger.addBreadcrumb({
   category: 'ProxyManager',
   message: errorCode,
-  level: SeverityLevel.Error,
+  level: 'error', // SeverityLevel.Error is not available, use string
   data: {
     config,
     proxy,
     errorCode
   }
-});
+} as Breadcrumb);
 
 /**
  * ProxyManager
@@ -25,41 +28,53 @@ export class ProxyManager {
   private readonly proxies: readonly ProxyBase[] = [];
   private liveProxies: ProxyConfig[] = [];
   private run: boolean = false;
-  private logger: any;
-  private readonly config: PaliProxyConfig = {};
+  private logger: ISentryLogger;
+  private readonly config: ProxyManagerConfig = {};
   private exceptionHandlers = {
-    [errorCodes.REQUEST_FAILED]: (exceptionData: ExceptionData) => {
-      this.logger.addBreadcrumb(exceptionData);
+    [errorCodes.REQUEST_FAILED]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
+      addBreadcrumb(this.logger, exceptionData);
       this.logger.captureException(exceptionData.error);
     },
-    [errorCodes.REQUEST_TIMEOUT]: (exceptionData: ExceptionData) => {
-      this.logger.addBreadcrumb(exceptionData);
+    [errorCodes.REQUEST_TIMEOUT]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
+      addBreadcrumb(this.logger, exceptionData);
       this.logger.captureException(exceptionData.error);
     },
-    [errorCodes.REQUEST_BODY_ERROR]: (exceptionData: ExceptionData) => {
-      this.logger.addBreadcrumb(exceptionData);
+    [errorCodes.REQUEST_BODY_ERROR]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
+      addBreadcrumb(this.logger, exceptionData);
       this.logger.captureException(exceptionData.error);
     },
-    [errorCodes.UNKNOWN_ERROR]: (exceptionData: ExceptionData) => {
-      this.logger.addBreadcrumb(exceptionData);
+    [errorCodes.UNKNOWN_ERROR]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
+      addBreadcrumb(this.logger, exceptionData);
       this.logger.captureException(exceptionData.error);
     }
   };
+  private readonly requestsStack: Map<string, RequestState> = new Map();
 
-  constructor(proxies: ProxyBase[], { sentryLogger, config }: { sentryLogger?: any, config?: PaliProxyConfig } = {}) {
+  constructor(proxies: ProxyBase[], { sentryLogger, config }: { sentryLogger?: ISentryLogger, config?: ProxyManagerConfig } = {}) {
     // Initialize logger with application tags
     this.logger = sentryLogger || innerLogger;
 
-    this.logger.setTags({
-      component: 'PaliProxy',
-      version: '1.0.0'
+    this.logger.addBreadcrumb({
+      category: 'ProxyManager',
+      message: 'Initializing ProxyManager',
+      level: 'info',
+      data: {
+        component: 'ProxyManager',
+        version: '1.0.0'
+      }
     });
 
-    this.logger.captureMessage('Initializing PaliProxy');
-    this.logger.setExtra('proxyCount', proxies.length);
+    this.logger.addBreadcrumb({
+      category: 'ProxyManager',
+      message: 'proxyCount',
+      level: 'info',
+      data: {
+        count: proxies.length
+      }
+    });
 
     if (!proxies || proxies.length === 0) {
-      this.logger.captureMessage(errorCodes.NO_PROXIES, SeverityLevel.Error);
+      this.logger.captureMessage(errorCodes.NO_PROXIES, 'error');
       throw new Error('No proxies provided');
     }
 
@@ -92,6 +107,10 @@ export class ProxyManager {
     return this;
   }
 
+  attemptsManager() {
+
+  }
+
   loopRangeProxies(): void {
     setInterval(() => {
       if (this.run) {
@@ -112,7 +131,7 @@ export class ProxyManager {
       throw new Error(errorMessages[errorCodes.NO_PROXIES]);
     }
 
-    const withLatency: ProxyConfig[] = await Promise.all(this.proxies.map(async (proxy, index) => {
+    const withLatency: ProxyConfig[] = await Promise.all(this.proxies.map(async (proxy) => {
       const { latency, alive } = await testProxy(proxy);
       return { ...proxy, alive, latency };
     }));
@@ -128,12 +147,20 @@ export class ProxyManager {
     this.liveProxies = aliveRangedProxies;
   }
 
-  async proxyRequestWithRetry(config: RequestConfig): Promise<any> {
-    const proxyState = {
-      onErrorRetries: 0,
-      onTimeoutRetries: 0
-    };
+  async runAttempt(attemptParams: AttemptParams): Promise<any> {
+    const { config, proxy } = attemptParams;
 
+    return proxyRequest(config, proxy)
+      .catch((error) => {
+        if (this.exceptionHandlers[error.errorCode]) {
+          this.exceptionHandlers[error.errorCode]!(error, attemptParams);
+        } else {
+          this.exceptionHandlers[errorCodes.UNKNOWN_ERROR]!(error, attemptParams);
+        }
+      });
+  }
+
+  async proxyRequestWithRetry(config: RequestConfig, requestId: string): Promise<any> {
     const proxy = this.liveProxies[0];
 
     if (!proxy) {
@@ -142,18 +169,36 @@ export class ProxyManager {
       throw err;
     }
 
-    proxyRequest(config, proxy)
-      .catch((error) => {
-        if (this.exceptionHandlers[error.errorCode]) {
-                    this.exceptionHandlers[error.errorCode]!(error);
-        } else {
-                    this.exceptionHandlers[errorCodes.UNKNOWN_ERROR]!(error);
-        }
-      });
+    this.runAttempt({ config, proxy, requestId });
   }
 
   async request(config: RequestConfig) {
-    return this.proxyRequestWithRetry(config);
+    const requestId = generateSnowflakeId();
+
+    this.requestsStack.set(requestId, {
+      retries: 0,
+      lastAttempt: Date.now(),
+      success: false,
+      attempts: []
+    });
+
+    return this.proxyRequestWithRetry(config, requestId)
+      .catch((error) => {
+        // unexpected error
+        const requestState = this.requestsStack.get(requestId);
+        this.logger.setExtra('requestState', requestState);
+        this.logger.captureException(error);
+      })
+      .finally(() => {
+        const requestState = this.requestsStack.get(requestId);
+        if (requestState?.success === true) {
+          this.requestsStack.delete(requestId);
+        } else {
+          this.logger.captureMessage('Proxy request failed', 'error');
+          this.logger.setExtra('requestState', requestState);
+          this.logger.captureException(new Error('All attempts failed'));
+        }
+      });
   }
 
   stop() {

@@ -14,7 +14,7 @@ type RequestConfig = {
   body?: any;
 };
 
-type PaliProxyConfig = {
+type ProxyManagerConfig = {
   onErrorRetries?: number;
   onTimeoutRetries?: number;
   maxTimeout?: number;
@@ -34,4 +34,19 @@ type ExceptionData = {
   error: NodeError;
   config: RequestConfig;
   proxy: ProxyConfig;
+};
+
+type RequestState = {
+  retries: number;
+  lastAttempt: number;
+  success: boolean;
+  attempts: AttemptParams[{
+    proxy: ProxyConfig;
+  }];
+}
+
+type AttemptParams = {
+  config: RequestConfig;
+  proxy: ProxyConfig;
+  requestId: string;
 };
