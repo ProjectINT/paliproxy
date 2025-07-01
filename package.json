@@ -1,7 +1,6 @@
 {
   "name": "palivpn",
   "version": "1.0.0",
-  "type": "module",
   "description": "VPN client with automatic connection management and health checking",
   "main": "src/index.ts",
   "types": "src/types.ts",

@@ -16,7 +16,8 @@ export default [
       '.env.*',
       'configs/*.ovpn',
       'example/*.js',
-      'example/*.d.ts'
+      'example/*.d.ts',
+      'eslint.config.js'
     ]
   },
   js.configs.recommended,
@@ -68,6 +69,7 @@ export default [
       // General ESLint rules
       'no-console': 'off', // Allow console.log for debugging
       'no-unused-vars': 'off', // Use TypeScript version instead
+      'no-undef': 'off', // TypeScript handles this
       'prefer-const': 'error',
       'no-var': 'error',
       'eqeqeq': 'error',
