@@ -1,0 +1,12 @@
+Snowflake Performance Test
+Date: 2025-07-01T09:51:36.050Z
+Machine: yrtrk
+Platform: linux x64
+CPU: 13th Gen Intel(R) Core(TM) i9-13900F (32 cores)
+RAM: 31 GB
+Node.js: v24.2.0
+IDs generated: 1000000
+Unique IDs: 1000000
+Duration: 329 ms
+Rate: 3039514 IDs/sec
+No collisions detected.
