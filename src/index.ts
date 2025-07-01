@@ -115,8 +115,17 @@ export class PaliProxy {
 
         proxyRequest(config, proxy)
             .catch((error) => {
-                this.logger.captureException(error);
-            });
+                this.logger.captureException(error, {
+                    extra: {
+                        config,
+                        proxy,
+                        retries: proxyState.onErrorRetries,
+                    },
+                    tags: {
+                        errorCode: error.code || 'UNKNOWN',
+                    }
+                });
+            })
     }
     
     async request(config: RequestConfig) {

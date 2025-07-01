@@ -4,6 +4,8 @@ import https from 'https';
 import http from 'http';
 import { errorCodes, errorMessages } from './errorCodes';
 
+type NodeError = Error & { code?: string };
+
 export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): Promise<any> {
     const { url, method = 'GET', headers = {}, body } = config;
 
@@ -32,8 +34,8 @@ export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): P
           reject({
             message: errorMessages[errorCodes.REQUEST_FAILED],
             error: err.message,
-            code: (err as any).code,
-            stack: err.stack,
+            code: (err as NodeError).code || 'UNKNOWN',
+            stack: (err as NodeError).stack,
             config,
             proxy,
           });
@@ -49,7 +51,18 @@ export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): P
         });
         
         if (body) {
-          req.write(typeof body === 'string' ? body : JSON.stringify(body));
+          try {
+            req.write(typeof body === 'string' ? body : JSON.stringify(body));
+          } catch (err) {
+            reject({
+              message: errorMessages[errorCodes.REQUEST_BODY_ERROR],
+              err,
+              code: (err as NodeError).code,
+              stack: (err as NodeError).stack,
+              config,
+              proxy,
+            });
+          }
         }
         
         req.end();
