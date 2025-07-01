@@ -4,8 +4,8 @@ export const errorCodes = {
   REQUEST_FAILED: 'REQUEST_FAILED',
   REQUEST_TIMEOUT: 'REQUEST_TIMEOUT',
   REQUEST_BODY_ERROR: 'REQUEST_BODY_ERROR',
-  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
-}
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR'
+};
 
 export const errorMessages = {
   [errorCodes.NO_ALIVE_PROXIES]: 'No live proxies available',
@@ -13,5 +13,5 @@ export const errorMessages = {
   [errorCodes.REQUEST_FAILED]: 'Request failed',
   [errorCodes.REQUEST_TIMEOUT]: 'Request timed out',
   [errorCodes.REQUEST_BODY_ERROR]: 'Error writing request body, serialization failed',
-  [errorCodes.UNKNOWN_ERROR]: 'Unknown error occurred',
-}
+  [errorCodes.UNKNOWN_ERROR]: 'Unknown error occurred'
+};

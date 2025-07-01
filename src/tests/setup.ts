@@ -11,7 +11,7 @@ export function suppressConsole() {
     debug: () => {},
     info: () => {},
     warn: () => {},
-    error: originalConsole.error, // Keep error for debugging
+    error: originalConsole.error // Keep error for debugging
   };
 }
 

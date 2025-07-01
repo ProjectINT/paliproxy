@@ -1,12 +1,16 @@
 {
   "name": "palivpn",
   "version": "1.0.0",
+  "type": "module",
   "description": "VPN client with automatic connection management and health checking",
   "main": "src/index.ts",
   "types": "src/types.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint . --ext .ts,.js",
+    "lint:fix": "eslint . --ext .ts,.js --fix",
+    "format": "eslint . --ext .ts,.js --fix"
   },
   "keywords": [
     "vpn",

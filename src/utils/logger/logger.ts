@@ -77,7 +77,7 @@ class FileLogger implements ISentryLogger {
       extras: Object.keys(this.extras).length > 0 ? this.extras : undefined,
       contexts: Object.keys(this.contexts).length > 0 ? this.contexts : undefined,
       breadcrumbs: this.breadcrumbs.length > 0 ? this.breadcrumbs.slice(-10) : undefined, // Keep last 10 breadcrumbs
-      data,
+      data
     };
 
     return JSON.stringify(logEntry, null, 2) + '\n---\n';
@@ -105,7 +105,7 @@ class FileLogger implements ISentryLogger {
       name: exception.name,
       message: exception.message,
       stack: exception.stack,
-      context,
+      context
     };
 
     const logEntry = this.formatLogEntry(SeverityLevel.Error, `Exception: ${exception.message}`, errorData);
@@ -148,7 +148,7 @@ class FileLogger implements ISentryLogger {
   addBreadcrumb(breadcrumb: { message: string; level?: SeverityLevel; category?: string; data?: any }): void {
     this.breadcrumbs.push({
       ...breadcrumb,
-      timestamp: new Date(),
+      timestamp: new Date()
     });
 
     // Keep only last 100 breadcrumbs to prevent memory issues
@@ -166,7 +166,7 @@ class FileLogger implements ISentryLogger {
       setExtra: (key: string, value: any) => this.setExtra(key, value),
       setExtras: (extras: SentryExtra) => this.setExtras(extras),
       setContext: (name: string, context: SentryContext) => this.setContext(name, context),
-      addBreadcrumb: (breadcrumb: any) => this.addBreadcrumb(breadcrumb),
+      addBreadcrumb: (breadcrumb: any) => this.addBreadcrumb(breadcrumb)
     };
 
     callback(scope);

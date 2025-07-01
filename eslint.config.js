@@ -59,25 +59,36 @@ export default [
     },
     rules: {
       // TypeScript specific rules
-      '@typescript-eslint/no-unused-vars': ['error', { 
+      '@typescript-eslint/no-unused-vars': ['error', {
         'argsIgnorePattern': '^_',
         'varsIgnorePattern': '^_'
       }],
       '@typescript-eslint/no-explicit-any': 'warn',
-      
+
       // General ESLint rules
       'no-console': 'off', // Allow console.log for debugging
       'no-unused-vars': 'off', // Use TypeScript version instead
       'prefer-const': 'error',
       'no-var': 'error',
       'eqeqeq': 'error',
-      'curly': 'error'
+      'curly': 'error',
+      'indent': ['error', 2],
+      'semi': ['error', 'always'],
+      'quotes': ['error', 'single'],
+      'comma-dangle': ['error', 'never'],
+      'object-curly-spacing': ['error', 'always'],
+      'array-bracket-spacing': ['error', 'never'],
+      'space-before-blocks': 'error',
+      'keyword-spacing': 'error',
+      'space-infix-ops': 'error',
+      'no-trailing-spaces': 'error',
+      'eol-last': 'error'
     }
   },
   {
     files: ['**/*.test.ts', '**/tests/**/*.ts'],
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { 
+      '@typescript-eslint/no-unused-vars': ['error', {
         'argsIgnorePattern': '^_',
         'varsIgnorePattern': '^_'
       }]

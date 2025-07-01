@@ -8,5 +8,5 @@ export const defaultProxyMangerConfig = {
   maxTimeout: 5000,
   healthCheckUrl: HEALTH_CHECK_URL,
   healthCheckInterval: HEALTH_CHECK_INTERVAL,
-  timeout: TIMEOUT,
+  timeout: TIMEOUT
 };
