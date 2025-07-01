@@ -25,3 +25,13 @@ type PaliProxyConfig = {
 }
 
 type ProxyBase = Omit<ProxyConfig, 'alive' | 'latency'>;
+
+type NodeError = Error & { code?: string };
+
+type ExceptionData = {
+  message: string;
+  errorCode: string;
+  error: NodeError;
+  config: RequestConfig;
+  proxy: ProxyConfig;
+};

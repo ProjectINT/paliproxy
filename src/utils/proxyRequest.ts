@@ -4,9 +4,13 @@ import https from 'https';
 import http from 'http';
 import { errorCodes, errorMessages } from './errorCodes';
 
-type NodeError = Error & { code?: string };
+type ResponseData = {
+    status: number | undefined; // TODO figure out why this is undefined sometimes
+    headers: http.IncomingHttpHeaders;
+    body: string;
+}
 
-export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): Promise<any> {
+export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): Promise<ResponseData> {
     const { url, method = 'GET', headers = {}, body } = config;
 
     const isHttps = url.startsWith('https://');
@@ -33,9 +37,8 @@ export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): P
         req.on('error', (err) => {
           reject({
             message: errorMessages[errorCodes.REQUEST_FAILED],
-            error: err.message,
-            code: (err as NodeError).code || 'UNKNOWN',
-            stack: (err as NodeError).stack,
+            errorCode: errorCodes.REQUEST_FAILED,
+            error: err,
             config,
             proxy,
           });
@@ -45,6 +48,8 @@ export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): P
           req.destroy();
           reject({
             message: errorMessages[errorCodes.REQUEST_TIMEOUT],
+            errorCode: errorCodes.REQUEST_TIMEOUT,
+            error: new Error('Request timed out'),
             config,
             proxy,
           });
@@ -56,9 +61,8 @@ export async function proxyRequest(config: RequestConfig, proxy: ProxyConfig): P
           } catch (err) {
             reject({
               message: errorMessages[errorCodes.REQUEST_BODY_ERROR],
-              err,
-              code: (err as NodeError).code,
-              stack: (err as NodeError).stack,
+              errorCode: errorCodes.REQUEST_BODY_ERROR,
+              error: err,
               config,
               proxy,
             });

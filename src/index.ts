@@ -5,17 +5,46 @@ import { errorCodes, errorMessages } from './utils/errorCodes';
 import { logger as innerLogger, SeverityLevel } from './utils/logger/logger';
 import { proxyRequest } from './utils/proxyRequest';
 
-import { defaultPaliProxyConfig } from '../constants';
+import { defaultProxyMangerConfig } from '../constants';
+
+const addBreadcrumb = (logger: any, { config, proxy, errorCode }: ExceptionData) => logger.addBreadcrumb({
+    category: 'ProxyManager',
+    message: errorCode,
+    level: SeverityLevel.Error,
+    data: {
+        config,
+        proxy,
+        errorCode
+    }
+});
 
 /**
- * PaliProxy
+ * ProxyManager
  */
-export class PaliProxy {
+export class ProxyManager {
     private readonly proxies: readonly ProxyBase[] = [];
     private liveProxies: ProxyConfig[] = [];
     private run: boolean = false;
     private logger: any;
     private readonly config: PaliProxyConfig = {};
+    private exceptionHandlers = {
+        [errorCodes.REQUEST_FAILED]: (exceptionData: ExceptionData) => {
+            this.logger.addBreadcrumb(exceptionData);
+            this.logger.captureException(exceptionData.error);
+        },
+        [errorCodes.REQUEST_TIMEOUT]: (exceptionData: ExceptionData) => {
+            this.logger.addBreadcrumb(exceptionData);
+            this.logger.captureException(exceptionData.error);
+        },
+        [errorCodes.REQUEST_BODY_ERROR]: (exceptionData: ExceptionData) => {
+            this.logger.addBreadcrumb(exceptionData);
+            this.logger.captureException(exceptionData.error);
+        },
+        [errorCodes.UNKNOWN_ERROR]: (exceptionData: ExceptionData) => {
+            this.logger.addBreadcrumb(exceptionData);
+            this.logger.captureException(exceptionData.error);
+        }
+    }
 
     constructor(proxies: ProxyBase[], { sentryLogger, config }: { sentryLogger?: any, config?: PaliProxyConfig } = {}) {
         // Initialize logger with application tags
@@ -46,12 +75,12 @@ export class PaliProxy {
         ).filter(proxy => proxy.alive);
 
         this.config = Object.freeze({
-            ...defaultPaliProxyConfig,
+            ...defaultProxyMangerConfig,
             ...config,
         });
     }
 
-    initialize(proxies: ProxyBase[]): PaliProxy {
+    initialize(proxies: ProxyBase[]): ProxyManager {
         if (!proxies || proxies.length === 0) {
             throw new Error('No proxies provided');
         }
@@ -115,17 +144,12 @@ export class PaliProxy {
 
         proxyRequest(config, proxy)
             .catch((error) => {
-                this.logger.captureException(error, {
-                    extra: {
-                        config,
-                        proxy,
-                        retries: proxyState.onErrorRetries,
-                    },
-                    tags: {
-                        errorCode: error.code || 'UNKNOWN',
-                    }
-                });
-            })
+                if (this.exceptionHandlers[error.errorCode]) {
+                    this.exceptionHandlers[error.errorCode]!(error);
+                } else {
+                    this.exceptionHandlers[errorCodes.UNKNOWN_ERROR]!(error);
+                }
+            });
     }
     
     async request(config: RequestConfig) {
