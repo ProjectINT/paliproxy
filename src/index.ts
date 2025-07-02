@@ -279,6 +279,11 @@ export class ProxyManager {
       });
   }
 
+  // Getter for testing purposes
+  get liveProxiesList(): ProxyConfig[] {
+    return [...this.liveProxies];
+  }
+
   stop() {
     this.run = false;
   }
