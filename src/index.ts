@@ -78,14 +78,12 @@ export class ProxyManager {
       sentryLogger: sentryLogger || innerLogger // Ensure sentryLogger is always present
     });
 
-    // Initialization logic moved from initialize()
+    // Initialization logic
     this.run = true;
     this.initLiveProxies();
     this.loopRangeProxies();
     this.checkProxyManagerConfig();
   }
-
-
 
   loopRangeProxies(): void {
     setInterval(() => {
