@@ -1,23 +1,23 @@
 # Tests
 
-Интеграционные тесты для утилит проекта.
+Integration tests for project utilities.
 
-## Запуск
+## Running
 
 ```bash
-# Тест функции testProxy
+# Test testProxy function
 npx ts-node src/tests/testProxy.test.ts
 
-# Все тесты
+# All tests
 npx ts-node src/tests/runTests.ts
 ```
 
 ## testProxy.test.ts
 
-9 тестов для функции `testProxy`:
-- ✅ Недействительные прокси и хосты
-- ✅ Формат конфигурации и спецсимволы
-- ✅ Timeout и кастомный URL
-- ✅ Формат результата и параллельные запросы
+9 tests for `testProxy` function:
+- ✅ Invalid proxies and hosts
+- ✅ Configuration format and special characters
+- ✅ Timeout and custom URL
+- ✅ Result format and parallel requests
 
-**Особенности**: Использует встроенный `assert`, реальные сетевые тесты, без внешних зависимостей.
+**Features**: Uses built-in `assert`, real network tests, no external dependencies.

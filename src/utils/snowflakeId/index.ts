@@ -60,7 +60,7 @@ class SnowflakeGenerator {
     this.machineIdShift = this.sequenceBits;
     this.timestampShift = this.sequenceBits + this.machineIdBits;
 
-    // Определяем machineId автоматически, если не передан явно или передан 'auto'
+    // Determine machineId automatically if not passed explicitly or passed as 'auto'
     let resolvedMachineId: number;
     if (machineId === undefined || machineId === 'auto') {
       resolvedMachineId = getAutoMachineId(this.maxMachineId);
@@ -248,10 +248,10 @@ export function parseSnowflakeId(id: string, config?: SnowflakeConfig): { timest
 
 /**
  * Try to get a unique machine ID based on MAC address, hostname, or fallback to random.
- * @param maxMachineId Максимально допустимый machineId (по битности)
+ * @param maxMachineId Maximum allowed machineId (by bit width)
  */
 function getAutoMachineId(maxMachineId: number): number {
-  // 1. MAC-адрес (первый не-loopback)
+  // 1. MAC address (first non-loopback)
   const nets = os.networkInterfaces();
   for (const name of Object.keys(nets)) {
     for (const net of nets[name] || []) {

@@ -1,17 +1,17 @@
 # Logger
 
-Sentry-совместимый логгер для записи логов в файл с поддержкой асинхронной записи и ротации логов.
+Sentry-compatible logger for writing logs to file with asynchronous writing and log rotation support.
 
-## Возможности
+## Features
 
-- ✅ Полная совместимость с интерфейсом Sentry
-- ✅ Асинхронная запись логов на диск
-- ✅ Ротация логов (максимум 5MB на файл)
-- ✅ Поддержка всех уровней логирования
-- ✅ Breadcrumbs, теги, пользователи, контекст
-- ✅ Автоматические тесты
+- ✅ Full compatibility with Sentry interface
+- ✅ Asynchronous log writing to disk
+- ✅ Log rotation (maximum 5MB per file)
+- ✅ Support for all logging levels
+- ✅ Breadcrumbs, tags, users, context
+- ✅ Automated tests
 
-## Использование
+## Usage
 
 ```typescript
 import { logger, SeverityLevel } from './logger';
@@ -22,12 +22,12 @@ await logger.captureMessage('Hello World', SeverityLevel.Info);
 await logger.captureException(new Error('Oops'));
 ```
 
-## Тестирование
+## Testing
 
-Запуск демо с автоматическими тестами:
+Run demo with automated tests:
 
 ```bash
 npx ts-node src/utils/logger/demo-logger.ts
 ```
 
-Логи сохраняются в `./logs/app.log`
+Logs are saved to `./logs/app.log`

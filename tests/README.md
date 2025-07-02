@@ -92,10 +92,10 @@ node tests/proxy-debug-test.js
 # Failover test
 node tests/proxy-failover-test.js
 
-# Проверка здоровья прокси
+# Proxy health check
 node tests/health-check-test.js
 
-# Тест API запросов
+# API request test
 node tests/request-api-test.js
 
 # And other tests...

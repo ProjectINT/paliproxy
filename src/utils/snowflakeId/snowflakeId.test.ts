@@ -217,7 +217,7 @@ test.test('SnowflakeGenerator default constructor works', () => {
   const generator = new SnowflakeGenerator();
   const id = generator.generate();
   const parsed = parseSnowflakeId(id);
-  // machineId теперь определяется автоматически, проверяем диапазон
+  // machineId is now determined automatically, check range
   test.expect(typeof parsed.machineId).toBe('number');
   test.expect(parsed.machineId).toBeGreaterThan(-1);
   test.expect(parsed.machineId).toBeLessThan(1024);
@@ -414,7 +414,7 @@ test.test('Full integration test', () => {
     test.expect(parsed.machineId).toBe(200);
   });
 
-  // Также тестируем default generator (auto machineId)
+  // Also test default generator (auto machineId)
   const defaultId = generateSnowflakeId();
   const defaultParsed = parseSnowflakeId(defaultId);
   test.expect(typeof defaultParsed.machineId).toBe('number');
@@ -425,7 +425,7 @@ test.test('Full integration test', () => {
 // Tests for auto-detection of machineId
 test.test('Auto machineId: MAC/hostname/fallback returns valid range', () => {
   const { getAutoMachineId } = require('./index');
-  // Проверяем для разных битностей
+  // Check for different bit widths
   [6, 8, 10, 14].forEach(bits => {
     const max = (1 << bits) - 1;
     const id = getAutoMachineId(max);

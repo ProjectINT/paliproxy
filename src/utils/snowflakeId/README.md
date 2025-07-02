@@ -1,59 +1,59 @@
 # Snowflake ID Generator
 
-Гибкий генератор уникальных 64-битных идентификаторов на основе алгоритма Twitter Snowflake с настраиваемым распределением битов и автоматическим определением machineId.
+Flexible generator of unique 64-bit identifiers based on Twitter's Snowflake algorithm with customizable bit distribution and automatic machineId detection.
 
-## Формат ID
+## ID Format
 
 ```
-[timestamp:X bits][machineId:Y bits][sequence:Z bits] где X+Y+Z=64
+[timestamp:X bits][machineId:Y bits][sequence:Z bits] where X+Y+Z=64
 ```
 
-- **Timestamp**: миллисекунды с эпохи (настраиваемая)
-- **Machine ID**: уникальный ID машины (1-22 бит, определяется автоматически по MAC/hostname или задается явно)
-- **Sequence**: счетчик в миллисекунду (1-22 бит)
+- **Timestamp**: milliseconds since epoch (customizable)
+- **Machine ID**: unique machine ID (1-22 bits, determined automatically by MAC/hostname or set explicitly)
+- **Sequence**: counter per millisecond (1-22 bits)
 
-## Использование
+## Usage
 
 ```typescript
 import { generateSnowflakeId, createSnowflakeGenerator, createCustomSnowflakeGenerator, SnowflakeConfigs } from './index';
 
-// Стандартный генератор (42-10-12), machineId определяется автоматически
+// Standard generator (42-10-12), machineId determined automatically
 const id = generateSnowflakeId();
 
-// Кастомная конфигурация с авто machineId
+// Custom configuration with auto machineId
 const generator = createSnowflakeGenerator('auto', {
-  machineIdBits: 8,  // 256 машин
-  sequenceBits: 15,  // 32K ID/мс
+  machineIdBits: 8,  // 256 machines
+  sequenceBits: 15,  // 32K ID/ms
   epoch: 1640995200000
 });
 
-// Явное задание machineId
+// Explicit machineId setting
 const generatorManual = createSnowflakeGenerator(5, { machineIdBits: 8, sequenceBits: 15 });
 
-// Предустановленные конфигурации (machineId определяется автоматически)
+// Preset configurations (machineId determined automatically)
 const highFreq = createCustomSnowflakeGenerator(SnowflakeConfigs.HIGH_FREQUENCY);
 const manyMachines = createCustomSnowflakeGenerator(SnowflakeConfigs.MANY_MACHINES);
 ```
 
-## Автоматическое определение machineId
+## Automatic machineId Detection
 
-- По умолчанию machineId вычисляется на основе MAC-адреса первого не-loopback интерфейса.
-- Если MAC недоступен — по hostname.
-- Если и hostname недоступен — случайное значение.
-- Можно явно задать machineId (например, для Docker-кластера или тестов).
+- By default, machineId is calculated based on MAC address of the first non-loopback interface.
+- If MAC is unavailable — based on hostname.
+- If hostname is also unavailable — random value.
+- You can explicitly set machineId (e.g., for Docker clusters or tests).
 
-**Best practices для production:**
-- В Docker/кластерных средах рекомендуется явно задавать machineId через переменные окружения или конфиг.
-- Для избежания коллизий убедитесь, что machineId уникален в рамках кластера.
+**Production best practices:**
+- In Docker/cluster environments, it's recommended to explicitly set machineId via environment variables or config.
+- To avoid collisions, ensure machineId is unique within the cluster.
 
-## Предустановки
+## Presets
 
-- **STANDARD**: 42-10-12 (Twitter совместимый)
-- **HIGH_FREQUENCY**: 41-8-15 (до 32K ID/мс)
-- **MANY_MACHINES**: 40-14-10 (до 16K машин)
-- **MINIMAL_MACHINES**: 44-6-14 (64 машины, долгий timestamp)
+- **STANDARD**: 42-10-12 (Twitter compatible)
+- **HIGH_FREQUENCY**: 41-8-15 (up to 32K ID/ms)
+- **MANY_MACHINES**: 40-14-10 (up to 16K machines)
+- **MINIMAL_MACHINES**: 44-6-14 (64 machines, long timestamp)
 
-## Тесты
+## Tests
 
 ```bash
 npx tsx src/utils/snowflakeId/runTests.ts

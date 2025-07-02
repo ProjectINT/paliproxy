@@ -217,7 +217,7 @@ async function demoLogger() {
   await logger.captureMessage('Configuration file not found, using defaults', 'warning');
 
   // Simulate an error with context
-  // Вместо withScope используем напрямую методы логгера
+  // Use logger methods directly instead of withScope
   logger.setTag('operation', 'network_test');
   logger.setExtra('attempt', 1);
   logger.addBreadcrumb({

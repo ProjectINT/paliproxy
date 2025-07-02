@@ -1,20 +1,20 @@
 /**
- * Пример файла со списком прокси для proxy-connection
+ * Example proxy list file for proxy-connection
  *
- * ВНИМАНИЕ: Это пример файла!
- * Замените эти данные на ваши реальные рабочие прокси
+ * WARNING: This is an example file!
+ * Replace this data with your real working proxies
  *
- * Формат прокси:
+ * Proxy format:
  * {
- *   ip: 'IP адрес прокси сервера',
- *   port: 'Порт прокси сервера',
- *   user: 'Имя пользователя для аутентификации (опционально)',
- *   pass: 'Пароль для аутентификации (опционально)'
+ *   ip: 'Proxy server IP address',
+ *   port: 'Proxy server port',
+ *   user: 'Username for authentication (optional)',
+ *   pass: 'Password for authentication (optional)'
  * }
  */
 
 module.exports = [
-  // Пример прокси с аутентификацией
+  // Example proxy with authentication
   {
     ip: '1.2.3.4',
     port: 1080,
@@ -22,36 +22,36 @@ module.exports = [
     pass: 'your_password'
   },
 
-  // Пример прокси без аутентификации
+  // Example proxy without authentication
   {
     ip: '5.6.7.8',
     port: 1080
   }
 
-  // Добавьте здесь ваши рабочие прокси
+  // Add your working proxies here
   // {
   //   ip: 'your_proxy_ip',
   //   port: your_proxy_port,
-  //   user: 'username',  // если требуется
-  //   pass: 'password'   // если требуется
+  //   user: 'username',  // if required
+  //   pass: 'password'   // if required
   // },
 ];
 
 /**
- * Как получить список прокси:
+ * How to get a proxy list:
  *
- * 1. Купите прокси у надежного провайдера
- * 2. Получите список IP:PORT с логинами/паролями
- * 3. Замените примеры выше на ваши данные
- * 4. Убедитесь, что прокси поддерживают SOCKS5 протокол
- * 5. Проверьте работоспособность командой: npm test
+ * 1. Buy proxies from a reliable provider
+ * 2. Get the IP:PORT list with logins/passwords
+ * 3. Replace the examples above with your data
+ * 4. Make sure the proxies support SOCKS5 protocol
+ * 5. Test functionality with command: npm test
  *
- * Рекомендуемые провайдеры прокси:
+ * Recommended proxy providers:
  * - ProxyEmpire
  * - Smartproxy
  * - Oxylabs
  * - NetNut
  *
- * ВАЖНО: Никогда не коммитьте реальные данные прокси в Git!
- * Добавьте proxies-list.js в .gitignore
+ * IMPORTANT: Never commit real proxy data to Git!
+ * Add proxies-list.js to .gitignore
  */
