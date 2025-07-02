@@ -68,8 +68,4 @@ type ErrorCodes = {
 
 type ErrorCode = keyof typeof errorCodes;
 
-type ResponseData = {
-    status: number | undefined; // TODO figure out why this is undefined sometimes
-    headers: http.IncomingHttpHeaders;
-    body: string;
-}
+type ResponseData = Response;

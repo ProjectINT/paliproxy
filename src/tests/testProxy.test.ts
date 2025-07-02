@@ -51,7 +51,7 @@ class TestRunner {
 const testRunner = new TestRunner();
 
 // Utility functions for testing
-function assertBetween(value: number, min: number, max: number, message = '') {
+function _assertBetween(value: number, min: number, max: number, message = '') {
   assert(value >= min && value <= max,
     message || `Expected ${value} to be between ${min} and ${max}`);
 }
@@ -188,7 +188,7 @@ testRunner.test('should use custom health check URL', async () => {
   try {
     await testProxyWithCustomUrl(proxy);
     assert(true, 'Function should accept custom health check URL');
-  } catch (error) {
+  } catch {
     // Network errors are expected with invalid proxy
   }
 
