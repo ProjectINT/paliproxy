@@ -17,10 +17,7 @@
     "lint": "eslint . --ext .ts,.js",
     "lint:fix": "eslint . --ext .ts,.js --fix",
     "format": "eslint . --ext .ts,.js --fix",
-    "test": "node tests/proxy-basic-test.js",
-    "test:debug": "node tests/proxy-debug-test.js",
-    "test:tts": "node tests/tts-readablestream-test.js",
-    "test:all": "npm run test && npm run test:debug"
+    "test": "node tests/run-all-tests.js"
   },
   "keywords": [
     "proxy",
