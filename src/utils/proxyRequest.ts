@@ -4,7 +4,8 @@ import https from 'https';
 import http from 'http';
 import { errorCodes, errorMessages } from './errorCodes';
 
-export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyConfig): Promise<ResponseData> {
+
+export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyConfig): Promise<Response> {
   const { url, method = 'GET', headers = {}, body } = requestConfig;
 
   const isHttps = url.startsWith('https://');
@@ -20,11 +21,22 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
+        // fetch-like Response imitation
         resolve({
-          status: res.statusCode,
+          ok: res.statusCode && res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode || 0,
+          statusText: res.statusMessage || '',
           headers: res.headers,
-          body: data
-        });
+          url,
+          redirected: false,
+          type: 'default',
+          clone() { return this; },
+          // fetch API: .text(), .json(), .arrayBuffer(), .blob(), .formData()
+          text: async () => data,
+          json: async () => { try { return JSON.parse(data); } catch { return data; } },
+          arrayBuffer: async () => Buffer.from(data)
+          // Not implemented: blob, formData
+        } as unknown as Response);
       });
     });
 

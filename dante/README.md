@@ -6,7 +6,7 @@
 
 ### Удаленная установка
 ```bash
-ssh root@your-server-ip 'bash -s' < setup-dante.sh yourSecretPassword
+ssh root@255.255.255.255 'bash -s' < ./dante/setup-dante.sh "your pass"
 ```
 
 ### Локальная установка

@@ -59,7 +59,7 @@ ehthumbs.db
 Thumbs.db
 
 # proxies
-proxies-list.ts
+proxies-list.js
 
 # Logs
 logs/

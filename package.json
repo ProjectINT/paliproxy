@@ -2,8 +2,8 @@
   "name": "proxy-connection",
   "version": "1.0.0",
   "description": "Proxy client with automatic connection management and health checking",
-  "main": "src/index.ts",
-  "types": "src/types.ts",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
