@@ -240,8 +240,16 @@ export class ProxyManager {
     });
   }
 
-  async request(requestConfig: RequestConfig) {
+  async request(url: string, options?: RequestConfig): Promise<ResponseData> {
     const requestId = generateSnowflakeId();
+
+    // Merge url and options into a single RequestConfig object
+    const requestConfig: RequestConfig = {
+      url,
+      method: options?.method || 'GET',
+      headers: options?.headers || {},
+      ...(options?.body !== undefined && { body: options.body })
+    };
 
     this.requestsStack.set(requestId, {
       retries: 0,
@@ -256,6 +264,7 @@ export class ProxyManager {
         const requestState = this.requestsStack.get(requestId);
         this.logger.setExtra('requestState', requestState);
         this.logger.captureException(error);
+        throw error; // Re-throw to maintain error handling
       })
       .finally(() => {
         const requestState = this.requestsStack.get(requestId);

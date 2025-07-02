@@ -8,6 +8,16 @@ import { errorCodes, errorMessages } from './errorCodes';
 export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyConfig): Promise<Response> {
   const { url, method = 'GET', headers = {}, body } = requestConfig;
 
+  if (!url) {
+    throw {
+      message: 'URL is required',
+      errorCode: errorCodes.REQUEST_BODY_ERROR,
+      error: new Error('URL is required'),
+      config: requestConfig,
+      proxy
+    };
+  }
+
   const isHttps = url.startsWith('https://');
   const agent = new SocksProxyAgent(`socks5://${proxy.user}:${proxy.pass}@${proxy.ip}:${proxy.port}`) as unknown as (http.Agent | https.Agent);
   const lib = isHttps ? https : http;

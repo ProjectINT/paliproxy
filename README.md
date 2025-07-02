@@ -20,7 +20,7 @@ Module for managing a proxy pool with automatic health-check, balancing, logging
 npm install proxy-connection
 ```
 
-2. Example usage:
+2. Example usage with new fetch-like API:
 
 ```typescript
 import { ProxyManager } from 'proxy-connection';
@@ -41,12 +41,43 @@ const manager = new ProxyManager(proxies, {
   sentryLogger: myLoggerInstance, // optional
 });
 
-const response = await manager.request({
-  url: 'https://api.ipify.org',
-  method: 'GET',
-  // ...
+// New fetch-like API (recommended)
+const response = await manager.request('https://api.ipify.org');
+const ip = await response.text();
+
+// With options (just like fetch)
+const response = await manager.request('https://httpbin.org/post', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ key: 'value' })
 });
+
+if (response.ok) {
+  const data = await response.json();
+  console.log(data);
+}
 ```
+
+### Fetch API Compatibility
+
+ProxyManager now supports fetch-like API for easy migration from `fetch()`:
+
+```typescript
+// Before (standard fetch)
+const response = await fetch(url, options);
+
+// After (with ProxyManager)
+const response = await manager.request(url, options);
+```
+
+The response object supports the same methods as fetch:
+- `response.text()` - get response as text
+- `response.json()` - parse response as JSON
+- `response.ok` - boolean indicating success (status 200-299)
+- `response.status` - HTTP status code
+- `response.statusText` - HTTP status message
 
 ## Dante
 

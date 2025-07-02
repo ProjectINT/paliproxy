@@ -8,7 +8,7 @@ type ProxyConfig = {
 };
 
 type RequestConfig = {
-  url: string;
+  url?: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: Record<string, string>;
   body?: Object | Object[] | string;
