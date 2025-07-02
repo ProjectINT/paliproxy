@@ -1,9 +1,16 @@
 {
   "name": "proxy-connection",
-  "version": "1.0.0",
-  "description": "Proxy client with automatic connection management and health checking",
+  "version": "1.1.0",
+  "description": "Proxy client with automatic connection management, health checking, and fetch-like API",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
+  "files": [
+    "dist/src/index.*",
+    "dist/src/utils/**/*",
+    "dist/constants.*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
@@ -17,10 +24,25 @@
   "keywords": [
     "proxy",
     "network",
-    "tunnel"
+    "tunnel",
+    "socks5",
+    "fetch",
+    "http-client",
+    "proxy-manager",
+    "health-check",
+    "failover",
+    "load-balancing"
   ],
-  "author": "",
+  "author": "ProxyManager Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/proxy-connection.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/proxy-connection/issues"
+  },
+  "homepage": "https://github.com/yourusername/proxy-connection#readme",
   "dependencies": {
     "dotenv": "^16.3.0",
     "socks-proxy-agent": "^8.0.5"

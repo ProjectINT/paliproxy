@@ -1,0 +1,38 @@
+# Development files  
+src/
+tests/
+demo/
+logs/
+dante/
+
+# Build tools
+tsconfig.json
+eslint.config.js
+.env
+.env.example
+proxies-list.js
+
+# Root TypeScript files (only compiled versions needed)
+constants.ts
+
+# IDE
+.vscode/
+.idea/
+
+# Version control
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+
+# Documentation (keep only main README)
+README.ru.md
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
