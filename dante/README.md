@@ -1,62 +1,62 @@
 # 🔒 Dante SOCKS5 Proxy Setup
 
-Автоматическая установка SOCKS5 прокси-сервера с использованием Dante на Ubuntu/Debian.
+Automatic SOCKS5 proxy server installation using Dante on Ubuntu/Debian.
 
-## 🚀 Быстрый запуск
+## 🚀 Quick Start
 
-### Удаленная установка
+### Remote Installation
 ```bash
 ssh root@255.255.255.255 'bash -s' < ./dante/setup-dante.sh "your pass"
 ```
 
-### Локальная установка
+### Local Installation
 ```bash
 chmod +x setup-dante.sh
 sudo ./setup-dante.sh yourSecretPassword
 ```
 
-## ⚙️ Что делает скрипт
+## ⚙️ What the Script Does
 
-1. **Установка пакетов** - dante-server
-2. **Создание пользователя** - `proxyuser` с указанным паролем
-3. **Конфигурация** - создание `/etc/danted.conf`
-4. **Запуск сервиса** - автозапуск danted
-5. **Настройка firewall** - открытие порта 1080
-6. **Вывод данных** - IP, порт, логин, пароль
+1. **Package Installation** - dante-server
+2. **User Creation** - `proxyuser` with specified password
+3. **Configuration** - creating `/etc/danted.conf`
+4. **Service Startup** - autostart danted
+5. **Firewall Setup** - opening port 1080
+6. **Data Output** - IP, port, login, password
 
-## 🔧 Настройки по умолчанию
+## 🔧 Default Settings
 
-| Параметр | Значение |
-|----------|----------|
-| Порт | 1080 |
-| Пользователь | proxyuser |
-| Интерфейс | eth0 |
-| Протоколы | TCP, UDP |
+| Parameter | Value |
+|-----------|-------|
+| Port | 1080 |
+| User | proxyuser |
+| Interface | eth0 |
+| Protocols | TCP, UDP |
 
-## 📋 Требования
+## 📋 Requirements
 
-- Ubuntu/Debian с sudo правами
-- Доступ к интернету
-- Порт 1080 свободен
+- Ubuntu/Debian with sudo privileges
+- Internet access
+- Port 1080 available
 
-## 🔐 Подключение к прокси
+## 🔐 Proxy Connection
 
-После установки используйте данные для подключения:
-- **Host:** IP вашего сервера
+After installation, use these credentials to connect:
+- **Host:** Your server IP
 - **Port:** 1080
 - **Type:** SOCKS5
 - **Username:** proxyuser
-- **Password:** ваш пароль
+- **Password:** your password
 
-## ⚠️ Безопасность
+## ⚠️ Security
 
-- Используйте сложные пароли
-- Рассмотрите ограничение доступа по IP
-- Регулярно обновляйте систему
+- Use strong passwords
+- Consider restricting access by IP
+- Regularly update the system
 
-## 📝 Логи
+## 📝 Logs
 
-Логи сервиса можно посмотреть командой:
+Service logs can be viewed with:
 ```bash
 sudo journalctl -u danted -f
 ```

@@ -14,6 +14,12 @@ Module for managing a proxy pool with automatic health-check, balancing, logging
 
 ## Usage
 
+0. (optional) Run script to install proxy to your ubuntu mashine
+
+```sh
+ssh root@255.255.255.255 'bash -s' < ./dante/setup-dante.sh "your pass for proxy auth"
+```
+
 1. Install the package:
 
 ```sh
@@ -163,8 +169,5 @@ Detailed description of each test is available in `tests/README.md`.
 
 ## Unit tests
 
-The `src/tests/` folder contains unit tests for individual modules and components.
+Unit test situated near test modules in src folder
 
-## Лицензия
-
-MIT
