@@ -1,5 +1,5 @@
-// Example: Test real proxies from proxies-list.js using ProxyManager
-// Run: node tests/example.js
+// Proxy Basic Test: Test real proxies from proxies-list.js using ProxyManager
+// Run: node tests/proxy-basic-test.js
 
 const { ProxyManager } = require('../dist');
 const { proxiesList } = require('../proxies-list');
@@ -49,10 +49,10 @@ async function main() {
     fs.mkdirSync(logsDir, { recursive: true });
   }
 
-  const logStream = fs.createWriteStream(path.join(logsDir, 'example.log'), { flags: 'w' }); // 'w' for overwrite
+  const logStream = fs.createWriteStream(path.join(logsDir, 'proxy-basic-test.log'), { flags: 'w' }); // 'w' for overwrite
 
   console.log(`📋 Testing ${testUrls.length} URLs with ${proxiesList.length} proxies`);
-  logStream.write(`=== Test run at ${new Date().toISOString()} ===\n`);
+  logStream.write(`=== Proxy Basic Test run at ${new Date().toISOString()} ===\n`);
 
   for (const url of testUrls) {
     console.log(`Testing: ${url}`);
@@ -75,7 +75,7 @@ async function main() {
     }
   }
   logStream.end();
-  console.log('\n✨ All tests completed! Check logs/example.log for detailed results.');
+  console.log('\n✨ All tests completed! Check logs/proxy-basic-test.log for detailed results.');
 
   // Gracefully terminate process to avoid hanging connections
   setTimeout(() => {

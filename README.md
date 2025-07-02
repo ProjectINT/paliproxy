@@ -137,10 +137,17 @@ const response = await manager.request({
 
 ```bash
 # Основной тест функциональности
-node tests/example.js
+npm run test
+# или
+node tests/proxy-basic-test.js
 
 # Детальная отладка с расширенным логированием  
-node tests/debug-example.js
+npm run test:debug
+# или
+node tests/proxy-debug-test.js
+
+# Все тесты подряд
+npm run test:all
 ```
 
 **Особенности тестов:**

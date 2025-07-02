@@ -1,5 +1,5 @@
-// Debug Example: Detailed logging for ProxyManager debugging
-// Run: node tests/debug-example.js
+// Proxy Debug Test: Detailed logging for ProxyManager debugging
+// Run: node tests/proxy-debug-test.js
 
 const { ProxyManager } = require('../dist');
 const { proxiesList } = require('../proxies-list');
@@ -31,8 +31,8 @@ const manager = new ProxyManager(proxiesList, {
   }
 });
 
-async function debugMain() {
-  console.log('🔍 Debug: Starting detailed ProxyManager analysis...\n');
+async function proxyDebugMain() {
+  console.log('🔍 Proxy Debug: Starting detailed ProxyManager analysis...\n');
 
   // Clear previous logs
   clearLogs();
@@ -47,21 +47,21 @@ async function debugMain() {
     fs.mkdirSync(logsDir, { recursive: true });
   }
 
-  const debugLogStream = fs.createWriteStream(path.join(logsDir, 'debug-example.log'), { flags: 'w' }); // 'w' for overwrite
+  const debugLogStream = fs.createWriteStream(path.join(logsDir, 'proxy-debug-test.log'), { flags: 'w' }); // 'w' for overwrite
 
-  console.log(`🔍 Debug: Testing ${testUrls.length} URLs with ${proxiesList.length} proxies`);
-  debugLogStream.write(`=== DEBUG Test run at ${new Date().toISOString()} ===\n`);
+  console.log(`🔍 Proxy Debug: Testing ${testUrls.length} URLs with ${proxiesList.length} proxies`);
+  debugLogStream.write(`=== Proxy Debug Test run at ${new Date().toISOString()} ===\n`);
 
   // Test each URL with detailed timing
   for (const url of testUrls) {
-    console.log(`🔍 Debug: Testing URL: ${url}`);
-    debugLogStream.write(`[DEBUG] Testing URL: ${url}\n`);
+    console.log(`🔍 Proxy Debug: Testing URL: ${url}`);
+    debugLogStream.write(`[PROXY-DEBUG] Testing URL: ${url}\n`);
 
     const startTime = Date.now();
 
     try {
       console.log(`⏱️  Starting request at: ${new Date().toISOString()}`);
-      debugLogStream.write(`[DEBUG] Request started at: ${new Date().toISOString()}\n`);
+      debugLogStream.write(`[PROXY-DEBUG] Request started at: ${new Date().toISOString()}\n`);
 
       const response = await manager.request({ url, method: 'GET' });
 
@@ -69,7 +69,7 @@ async function debugMain() {
       const duration = endTime - startTime;
 
       console.log(`⏱️  Request completed in: ${duration}ms`);
-      debugLogStream.write(`[DEBUG] Request completed in: ${duration}ms\n`);
+      debugLogStream.write(`[PROXY-DEBUG] Request completed in: ${duration}ms\n`);
 
       if (response && typeof response.text === 'function') {
         const text = await response.text();
@@ -87,7 +87,7 @@ async function debugMain() {
       const errMsg = `❌ [${url}] Error: ${e.message}, Duration: ${duration}ms`;
       console.error(errMsg);
       debugLogStream.write(errMsg + '\n');
-      debugLogStream.write(`[DEBUG] Error stack: ${e.stack}\n`);
+      debugLogStream.write(`[PROXY-DEBUG] Error stack: ${e.stack}\n`);
     }
 
     // Add delay between requests to avoid conflicts
@@ -96,17 +96,17 @@ async function debugMain() {
   }
 
   debugLogStream.end();
-  console.log('\n🔍 Debug: All tests completed! Check logs/debug-example.log for detailed results.');
+  console.log('\n🔍 Proxy Debug: All tests completed! Check logs/proxy-debug-test.log for detailed results.');
 
   // Give some time for any background processes to finish
   setTimeout(() => {
-    console.log('🛑 Debug: Stopping ProxyManager...');
+    console.log('🛑 Proxy Debug: Stopping ProxyManager...');
     manager.stop();
     setTimeout(() => process.exit(0), 1000);
   }, 3000);
 }
 
-debugMain().catch((error) => {
-  console.error('🚨 Debug: Fatal error:', error);
+proxyDebugMain().catch((error) => {
+  console.error('🚨 Proxy Debug: Fatal error:', error);
   process.exit(1);
 });
