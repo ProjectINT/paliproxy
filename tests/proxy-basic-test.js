@@ -57,7 +57,7 @@ async function main() {
   for (const url of testUrls) {
     console.log(`Testing: ${url}`);
     try {
-      const response = await manager.request({ url, method: 'GET' });
+      const response = await manager.request(url, { method: 'GET' });
       if (response && typeof response.text === 'function') {
         const text = await response.text();
         const msg = `✅ [${url}] Status: ${response.status}, IP: ${text.trim()}`;

@@ -83,12 +83,12 @@ class FileLogger implements ISentryLogger {
 
   async captureException(exception: Error, _hint?: EventHint, _context?: CaptureContext): Promise<string> {
     const errorData = {
-      name: exception.name,
-      message: exception.message,
-      stack: exception.stack,
+      name: exception?.name || 'Unknown',
+      message: exception?.message || String(exception),
+      stack: exception?.stack || 'No stack trace available',
       context: _context
     };
-    const logEntry = this.formatLogEntry('error', `Exception: ${exception.message}`, errorData);
+    const logEntry = this.formatLogEntry('error', `Exception: ${exception?.message || String(exception)}`, errorData);
     await this.writeLogAsync(logEntry);
     return this.generateEventId();
   }

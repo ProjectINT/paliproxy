@@ -29,24 +29,120 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
       agent
     }, (res) => {
       let data = '';
-      res.on('data', (chunk) => data += chunk);
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk) => {
+        chunks.push(chunk);
+        // Only append to data string if content is text-based
+        if (res.headers['content-type']?.includes('text') ||
+            res.headers['content-type']?.includes('json') ||
+            res.headers['content-type']?.includes('application/json')) {
+          data += chunk;
+        }
+      });
       res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+
+        // For text content, use string data; for binary, use buffer
+        const isTextContent = res.headers['content-type']?.includes('text') ||
+                             res.headers['content-type']?.includes('json') ||
+                             res.headers['content-type']?.includes('application/json');        if (!isTextContent && !data) {
+          data = buffer.toString('utf8');
+        }
+
+        // Create ReadableStream from buffer
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array(buffer));
+            controller.close();
+          }
+        });
+
         // fetch-like Response imitation
-        resolve({
-          ok: res.statusCode && res.statusCode >= 200 && res.statusCode < 300,
+        const response = {
+          ok: res.statusCode ? res.statusCode >= 200 && res.statusCode < 300 : false,
           status: res.statusCode || 0,
           statusText: res.statusMessage || '',
           headers: res.headers,
           url,
           redirected: false,
-          type: 'default',
-          clone() { return this; },
-          // fetch API: .text(), .json(), .arrayBuffer(), .blob(), .formData()
-          text: async () => data,
-          json: async () => { try { return JSON.parse(data); } catch { return data; } },
-          arrayBuffer: async () => Buffer.from(data)
-          // Not implemented: blob, formData
-        } as unknown as Response);
+          type: 'default' as const,
+          body: stream,
+          bodyUsed: false,
+
+          clone() {
+            if (response.bodyUsed) {
+              throw new TypeError('Body has already been consumed');
+            }
+
+            const clonedStream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(new Uint8Array(buffer));
+                controller.close();
+              }
+            });
+
+            return {
+              ok: response.ok,
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+              url: response.url,
+              redirected: response.redirected,
+              type: response.type,
+              body: clonedStream,
+              bodyUsed: false,
+              text: async () => data,
+              json: async () => { try { return JSON.parse(data); } catch { return data; } },
+              arrayBuffer: async () => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+              blob: async () => new Blob([buffer]),
+              formData: async () => { throw new Error('FormData not implemented'); },
+              clone: () => { throw new Error('Cannot clone already cloned response'); }
+            };
+          },
+
+          // fetch API methods
+          text: async () => {
+            if (response.bodyUsed) {
+              throw new TypeError('Body has already been consumed');
+            }
+            response.bodyUsed = true;
+            return data;
+          },
+
+          json: async () => {
+            if (response.bodyUsed) {
+              throw new TypeError('Body has already been consumed');
+            }
+            response.bodyUsed = true;
+            try {
+              return JSON.parse(data);
+            } catch {
+              return data;
+            }
+          },
+
+          arrayBuffer: async () => {
+            if (response.bodyUsed) {
+              throw new TypeError('Body has already been consumed');
+            }
+            response.bodyUsed = true;
+            return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+          },
+
+          blob: async () => {
+            if (response.bodyUsed) {
+              throw new TypeError('Body has already been consumed');
+            }
+            response.bodyUsed = true;
+            return new Blob([buffer]);
+          },
+
+          formData: async () => {
+            throw new Error('FormData not implemented');
+          }
+        };
+
+        resolve(response as unknown as Response);
       });
     });
 

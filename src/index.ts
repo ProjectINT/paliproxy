@@ -155,7 +155,18 @@ export class ProxyManager {
       return response;
     } catch (exceptionData: unknown) {
       addBreadcrumb(this.logger, exceptionData as ExceptionData);
-      this.logger.captureException((exceptionData as ExceptionData).error);
+
+      // Handle different types of exceptions
+      let errorToLog: Error;
+      if (exceptionData && typeof exceptionData === 'object' && 'error' in exceptionData) {
+        errorToLog = (exceptionData as ExceptionData).error;
+      } else if (exceptionData instanceof Error) {
+        errorToLog = exceptionData;
+      } else {
+        errorToLog = new Error(String(exceptionData));
+      }
+
+      this.logger.captureException(errorToLog);
       const requestState = this.requestsStack.get(attemptParams.requestId);
 
       if (!requestState) {
