@@ -45,6 +45,7 @@ const manager = new ProxyManager(proxies, {
     // ...
   },
   sentryLogger: myLoggerInstance, // optional
+  disableLogging: false, // optional - set to true to disable all logging
 });
 
 // New fetch-like API (recommended)
@@ -95,7 +96,35 @@ The response object supports the same methods as fetch:
 
 - By default, a built-in logger with Sentry support is used.
 - You can provide your own logger implementing the `ISentryLogger` interface.
-- All errors, attempts, and events are logged.
+- **Logging can be completely disabled** by setting `disableLogging: true` in options.
+- All errors, attempts, and events are logged (when logging is enabled).
+
+### Logger Configuration Examples
+
+```typescript
+// Default behavior - built-in logger with Sentry support
+const manager = new ProxyManager(proxies);
+
+// Use custom Sentry logger
+const manager = new ProxyManager(proxies, {
+  sentryLogger: myCustomSentryLogger
+});
+
+// Completely disable logging (no logs, no Sentry, best performance)
+const manager = new ProxyManager(proxies, {
+  disableLogging: true
+});
+
+// Disable logging with custom config
+const manager = new ProxyManager(proxies, {
+  disableLogging: true,
+  config: {
+    maxTimeout: 5000,
+    healthCheckInterval: 60000,
+    // ... other config options
+  }
+});
+```
 
 ## Testing
 

@@ -2,7 +2,7 @@
 import { testProxy } from './utils/testProxy';
 // import { proxiesList } from '../proxies-list';
 import { errorCodes, errorMessages } from './utils/errorCodes';
-import { logger as innerLogger, ISentryLogger } from './utils/logger';
+import { logger as innerLogger, nullLogger, ISentryLogger } from './utils/logger';
 import { proxyRequest } from './utils/proxyRequest';
 import type { Breadcrumb } from '@sentry/core';
 
@@ -30,12 +30,13 @@ export class ProxyManager {
   private liveProxies: ProxyConfig[] = [];
   private run: boolean = false;
   private logger: ISentryLogger;
-  private readonly config: ProxyManagerConfig = { ...defaultProxyMangerConfig, sentryLogger: undefined };
+  private readonly config: ProxyManagerConfig;
   private readonly requestsStack: Map<string, RequestState> = new Map();
 
-  constructor(proxies: ProxyBase[], { sentryLogger, config }: { sentryLogger?: ISentryLogger, config?: ProxyManagerConfig } = {}) {
+  constructor(proxies: ProxyBase[], options: ProxyManagerOptions = {}) {
+    const { sentryLogger, config, disableLogging = false } = options;
     // Initialize logger with application tags
-    this.logger = sentryLogger || innerLogger;
+    this.logger = disableLogging ? nullLogger : (sentryLogger as ISentryLogger || innerLogger);
 
     this.logger.addBreadcrumb({
       category: 'ProxyManager',
@@ -74,8 +75,7 @@ export class ProxyManager {
 
     this.config = Object.freeze({
       ...defaultProxyMangerConfig,
-      ...config,
-      sentryLogger: sentryLogger || innerLogger // Ensure sentryLogger is always present
+      ...config
     });
 
     // Initialization logic

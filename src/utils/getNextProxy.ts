@@ -42,7 +42,7 @@ export const getNextProxy = ({ requestState, proxies, config }: GetNextProxyArgs
 
   const lastErrorCode = lastAttempt.errorCode as ErrorCode;
 
-  const errorCodeRetries = getRetriesByConfig(lastErrorCode, config);
+  const errorCodeRetries = getRetriesByConfig(lastErrorCode, config) as number;
 
   const errorAttempts = attempts.reduceRight<Attempt[]>((acc, attempt, index, attempts) => {
     // we need this function to implement change proxy loop

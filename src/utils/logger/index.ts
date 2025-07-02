@@ -162,10 +162,61 @@ class FileLogger implements ISentryLogger {
   }
 }
 
+// Null Object Pattern - логгер который ничего не делает
+class NullLogger implements ISentryLogger {
+  async captureException(): Promise<string> {
+    return '';
+  }
+
+  async captureMessage(): Promise<string> {
+    return '';
+  }
+
+  setUser(): void {
+    // no-op
+  }
+
+  setTag(): void {
+    // no-op
+  }
+
+  setTags(): void {
+    // no-op
+  }
+
+  setExtra(): void {
+    // no-op
+  }
+
+  setExtras(): void {
+    // no-op
+  }
+
+  setContext(): void {
+    // no-op
+  }
+
+  addBreadcrumb(): void {
+    // no-op
+  }
+
+  withScope(): void {
+    // no-op
+  }
+}
+
 export function createLogger(): ISentryLogger {
   return new FileLogger();
 }
 
+export function createNullLogger(): ISentryLogger {
+  return new NullLogger();
+}
+
+// Default logger instance
 export const logger = createLogger();
+
+// Null logger instance for when logging should be disabled
+export const nullLogger = createNullLogger();
 
 export default logger;

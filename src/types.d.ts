@@ -20,7 +20,6 @@ type ProxyManagerConfig = {
   maxTimeout: number;
   healthCheckUrl: string;
   healthCheckInterval: number;
-  sentryLogger: ISentryLogger; // TODO add type for Sentry logger
   changeProxyLoop: number; // Number of attempts to change proxy in loop
 }
 
@@ -69,3 +68,9 @@ type ErrorCodes = {
 type ErrorCode = keyof typeof errorCodes;
 
 type ResponseData = Response;
+
+type ProxyManagerOptions = {
+  sentryLogger?: object | undefined;
+  config?: ProxyManagerConfig;
+  disableLogging?: boolean;
+};
