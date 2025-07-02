@@ -48,7 +48,10 @@ export const testProxy = async (proxy: ProxyBase): Promise<{ latency: number; al
       alive: response.statusCode >= 200 && response.statusCode < 300
     };
   } catch (error) {
-    console.log('error', error); // TODO figure out with exception
+    // Only log errors if not suppressed for testing
+    if (!process.env.SUPPRESS_PROXY_ERRORS) {
+      console.log('error', error); // TODO figure out with exception
+    }
     clearTimeout(timeoutId);
     return {
       latency: timeout,

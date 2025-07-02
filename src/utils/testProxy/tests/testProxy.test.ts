@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { testProxy } from '../utils/testProxy';
+import { testProxy } from '../index';
 import assert from 'assert';
 
 // Mock ProxyBase interface
@@ -136,9 +136,9 @@ testRunner.test('should respect timeout configuration', async () => {
   process.env.TIMEOUT = '2000';
 
   // Clear require cache to get new timeout value
-  const modulePath = require.resolve('../utils/testProxy');
+  const modulePath = require.resolve('../index');
   delete require.cache[modulePath];
-  const { testProxy: testProxyWithTimeout } = require('../utils/testProxy');
+  const { testProxy: testProxyWithTimeout } = require('../index');
 
   const proxy: ProxyBase = {
     ip: '127.0.0.1', // Use localhost with invalid port for faster failure
@@ -174,9 +174,9 @@ testRunner.test('should use custom health check URL', async () => {
   process.env.HEALTH_CHECK_URL = 'https://httpbin.org/status/200';
 
   // Clear require cache to get new URL
-  const modulePath = require.resolve('../utils/testProxy');
+  const modulePath = require.resolve('../index');
   delete require.cache[modulePath];
-  const { testProxy: testProxyWithCustomUrl } = require('../utils/testProxy');
+  const { testProxy: testProxyWithCustomUrl } = require('../index');
 
   const proxy: ProxyBase = {
     ip: '127.0.0.1',
