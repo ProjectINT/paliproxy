@@ -40,8 +40,6 @@ const manager = new ProxyManager(proxies, {
   sentryLogger: myLoggerInstance, // опционально
 });
 
-manager.initialize(proxies);
-
 const response = await manager.request({
   url: 'https://api.ipify.org',
   method: 'GET',

@@ -1,5 +1,5 @@
 {
-  "name": "proxy-manager",
+  "name": "paliproxy",
   "version": "1.0.0",
   "description": "Proxy client with automatic connection management and health checking",
   "main": "src/index.ts",
@@ -12,7 +12,6 @@
     "format": "eslint . --ext .ts,.js --fix"
   },
   "keywords": [
-    "vpn",
     "proxy",
     "network",
     "tunnel"

@@ -77,20 +77,15 @@ export class ProxyManager {
       ...config,
       sentryLogger: sentryLogger || innerLogger // Ensure sentryLogger is always present
     });
-  }
 
-  initialize(proxies: ProxyBase[]): ProxyManager {
-    if (!proxies || proxies.length === 0) {
-      throw new Error('No proxies provided');
-    }
-
+    // Initialization logic moved from initialize()
     this.run = true;
     this.initLiveProxies();
     this.loopRangeProxies();
     this.checkProxyManagerConfig();
-
-    return this;
   }
+
+
 
   loopRangeProxies(): void {
     setInterval(() => {
