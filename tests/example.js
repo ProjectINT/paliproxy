@@ -1,8 +1,25 @@
 // Example: Test real proxies from proxies-list.js using ProxyManager
-// Run: node example.js
+// Run: node tests/example.js
 
-const { ProxyManager } = require('./dist');
-const { proxiesList } = require('./proxies-list');
+const { ProxyManager } = require('../dist');
+const { proxiesList } = require('../proxies-list');
+const fs = require('fs');
+const path = require('path');
+
+// Clear previous logs function
+function clearLogs() {
+  const logsDir = path.join(__dirname, '..', 'logs');
+  if (fs.existsSync(logsDir)) {
+    const logFiles = fs.readdirSync(logsDir);
+    logFiles.forEach(file => {
+      if (file.endsWith('.log')) {
+        const filePath = path.join(logsDir, file);
+        fs.unlinkSync(filePath);
+        console.log(`🗑️  Cleared log file: ${file}`);
+      }
+    });
+  }
+}
 
 // ProxyManager configuration for testing
 const manager = new ProxyManager(proxiesList, {
@@ -17,25 +34,25 @@ const manager = new ProxyManager(proxiesList, {
 async function main() {
   console.log('🚀 Testing ProxyManager with real proxies...\n');
 
+  // Clear previous logs
+  clearLogs();
+
   const testUrls = [
     'https://api.ipify.org',
     'https://ifconfig.me/ip',
     'https://ipinfo.io/ip'
   ];
 
-  const fs = require('fs');
-  const path = require('path');
-
   // Ensure logs directory exists
-  const logsDir = path.join(__dirname, 'logs');
+  const logsDir = path.join(__dirname, '..', 'logs');
   if (!fs.existsSync(logsDir)) {
     fs.mkdirSync(logsDir, { recursive: true });
   }
 
-  const logStream = fs.createWriteStream(path.join(logsDir, 'example.log'), { flags: 'a' });
+  const logStream = fs.createWriteStream(path.join(logsDir, 'example.log'), { flags: 'w' }); // 'w' for overwrite
 
   console.log(`📋 Testing ${testUrls.length} URLs with ${proxiesList.length} proxies`);
-  logStream.write(`\n=== Test run at ${new Date().toISOString()} ===\n`);
+  logStream.write(`=== Test run at ${new Date().toISOString()} ===\n`);
 
   for (const url of testUrls) {
     console.log(`Testing: ${url}`);
@@ -58,10 +75,13 @@ async function main() {
     }
   }
   logStream.end();
-  console.log('\n✨ All tests completed! Check example.log for detailed results.');
+  console.log('\n✨ All tests completed! Check logs/example.log for detailed results.');
 
   // Gracefully terminate process to avoid hanging connections
-  setTimeout(() => process.exit(0), 100);
+  setTimeout(() => {
+    manager.stop();
+    setTimeout(() => process.exit(0), 100);
+  }, 100);
 }
 
 main().catch(console.error);

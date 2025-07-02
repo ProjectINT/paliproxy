@@ -123,11 +123,28 @@ export class ProxyManager {
     this.liveProxies = aliveRangedProxies;
   }
 
-  runAttempt(attemptParams: AttemptParams): Promise<ResponseData> {
+  async runAttempt(attemptParams: AttemptParams): Promise<ResponseData> {
     const { requestConfig, proxy } = attemptParams;
 
     try {
-      return proxyRequest(requestConfig, proxy);
+      const response = await proxyRequest(requestConfig, proxy);
+
+      // Mark request as successful
+      const requestState = this.requestsStack.get(attemptParams.requestId);
+      if (requestState) {
+        this.requestsStack.set(attemptParams.requestId, {
+          ...requestState,
+          success: true,
+          attempts: [...requestState.attempts, {
+            proxy,
+            errorCode: null,
+            success: true,
+            ts: Date.now()
+          }]
+        });
+      }
+
+      return response;
     } catch (exceptionData: unknown) {
       addBreadcrumb(this.logger, exceptionData as ExceptionData);
       this.logger.captureException((exceptionData as ExceptionData).error);
