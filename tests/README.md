@@ -1,25 +1,25 @@
 # Tests
 
-Папка с тестами для ProxyManager. Все тесты автоматически очищают предыдущие логи перед запуском.
+Test folder for ProxyManager. All tests automatically clean previous logs before running.
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
 ```bash
-# Запустить ВСЕ тесты (рекомендуемый способ)
+# Run ALL tests (recommended way)
 npm test
 ```
 
-Эта команда запустит управляющий скрипт `run-all-tests.js`, который:
-- ✅ Проверит переменные окружения
-- 🧹 Очистит предыдущие логи
-- 🔄 Последовательно запустит все тесты
-- 📊 Выведет подробный отчет о результатах
+This command will run the master script `run-all-tests.js`, which:
+- ✅ Checks environment variables
+- 🧹 Cleans previous logs
+- 🔄 Sequentially runs all tests
+- 📊 Outputs detailed results report
 
-## ⚙️ Предварительные требования
+## ⚙️ Prerequisites
 
-**Обязательно** перед запуском тестов:
+**Required** before running tests:
 
-### 1. Создайте файл `.env` в корне проекта:
+### 1. Create `.env` file in project root:
 ```env
 # Environment Configuration
 NODE_ENV=development
@@ -30,73 +30,66 @@ HEALTH_CHECK_URL=https://httpbin.org/ip
 CHAT_GPT_API_KEY="your_chat_gpt_api_key_here"
 ```
 
-### 2. Создайте файл `proxies-list.js` с рабочими прокси:
+### 2. Create `proxies-list.js` file with working proxies:
 ```javascript
 module.exports = [
   { ip: '1.2.3.4', port: 1080, user: 'username', pass: 'password' },
   { ip: '5.6.7.8', port: 1080, user: 'username', pass: 'password' },
-  // добавьте ваши рабочие прокси
+  // add your working proxies
 ];
 ```
 
-## 📋 Список тестов
+## 📋 Test List
 
-Управляющий скрипт запускает следующие тесты:
+The master script runs the following tests:
 
-## 📋 Список тестов
+### 1. 🚀 Basic Proxy Test (`proxy-basic-test.js`)
+**Main ProxyManager functionality test**
+- Works with real proxies from `proxies-list.js`
+- Requests to multiple URLs for IP checking
+- Standard ProxyManager configuration
+- Basic logging
 
-Управляющий скрипт запускает следующие тесты:
+### 2. 🔍 Debug Proxy Test (`proxy-debug-test.js`)
+**Detailed debug test with extended logging**
+- Detailed logging with timestamps
+- Single URL for simplified debugging
+- Extended timeouts for analysis
+- Detailed error tracing
 
-### 1. 🚀 Базовый тест прокси (`proxy-basic-test.js`)
-**Основной тест функциональности ProxyManager**
-- Работа с реальными прокси из `proxies-list.js`
-- Запросы к нескольким URL для проверки IP
-- Стандартная конфигурация ProxyManager
-- Базовое логирование
+### 3. 🔄 Failover Test (`proxy-failover-test.js`)
+**Test switching between proxies on failures**
 
-### 2. 🔍 Отладочный тест прокси (`proxy-debug-test.js`)
-**Детальный отладочный тест с расширенным логированием**
-- Подробное логирование с временными метками
-- Один URL для упрощенной отладки
-- Расширенные таймауты для анализа
-- Детальная трассировка ошибок
+### 4. 🔐 Failover Test with Password (`proxy-failover-password-test.js`)
+**Test proxy switching with authentication**
 
-### 3. 🔄 Тест отказоустойчивости (`proxy-failover-test.js`)
-**Тест переключения между прокси при сбоях**
+### 5. 💓 Proxy Health Check (`health-check-test.js`)
+**Test proxy health monitoring system**
 
-### 4. 🔐 Тест отказоустойчивости с паролем (`proxy-failover-password-test.js`)
-**Тест переключения прокси с аутентификацией**
+### 6. 🌐 API Requests Test (`request-api-test.js`)
+**Test fetch-like API for requests**
 
-### 5. 💓 Проверка здоровья прокси (`health-check-test.js`)
-**Тест системы мониторинга состояния прокси**
+### 7. ⚡ Quick Integration Test (`quick-integration-test.js`)
+**Quick check of main components**
 
-### 6. 🌐 Тест API запросов (`request-api-test.js`)
-**Тест fetch-like API для работы с запросами**
+### 8. 📦 Package Test (`test-package.js`)
+**Test installed npm package**
 
-### 7. ⚡ Быстрый интеграционный тест (`quick-integration-test.js`)
-**Быстрая проверка основных компонентов**
+### 9. 🎵 TTS ReadableStream Test (`tts-readablestream-test.js`)
+**Test streaming data through proxy**
 
-### 8. 📦 Тест пакета (`test-package.js`)
-**Тест установленного npm пакета**
+## 🎯 Individual Test Execution
 
-### 9. 🎵 Тест TTS ReadableStream (`tts-readablestream-test.js`)
-**Тест работы с потоковыми данными через прокси**
-
-## 🎯 Индивидуальный запуск тестов
-
-Если необходимо запустить конкретный тест:
-## 🎯 Индивидуальный запуск тестов
-
-Если необходимо запустить конкретный тест:
+If you need to run a specific test:
 
 ```bash
-# Основной тест функциональности
+# Main functionality test
 node tests/proxy-basic-test.js
 
-# Детальная отладка
+# Detailed debugging
 node tests/proxy-debug-test.js
 
-# Тест отказоустойчивости
+# Failover test
 node tests/proxy-failover-test.js
 
 # Проверка здоровья прокси
@@ -105,110 +98,110 @@ node tests/health-check-test.js
 # Тест API запросов
 node tests/request-api-test.js
 
-# И другие тесты...
+# And other tests...
 ```
 
-## 📊 Результаты тестирования
+## 📊 Test Results
 
-После запуска `npm test` вы получите:
+After running `npm test` you will get:
 
 ```
 ═══════════════════════════════════════════════════════════
-🚀 ЗАПУСК ВСЕХ ТЕСТОВ PROXY-CONNECTION
+🚀 RUNNING ALL PROXY-CONNECTION TESTS
 ═══════════════════════════════════════════════════════════
 
-🔍 Проверка переменных окружения...
-✅ Предварительная проверка завершена
+🔍 Checking environment variables...
+✅ Preliminary check completed
 
-🧹 Очистка предыдущих логов...
+🧹 Cleaning previous logs...
 
-📋 Базовый тест прокси
-   Основной тест функциональности ProxyManager
-🔧 Запуск: proxy-basic-test.js
-✅ Тест завершен успешно (1250ms)
+📋 Basic Proxy Test
+   Main ProxyManager functionality test
+🔧 Running: proxy-basic-test.js
+✅ Test completed successfully (1250ms)
 
 ...
 
 ═══════════════════════════════════════════════════════════
-📊 ОТЧЕТ О РЕЗУЛЬТАТАХ ТЕСТОВ
+📊 TEST RESULTS REPORT
 ═══════════════════════════════════════════════════════════
 
-✅ Успешно: 8
-❌ Неудачно: 1
-⏱️  Общее время: 15420ms
+✅ Successful: 8
+❌ Failed: 1
+⏱️  Total time: 15420ms
 
-📋 Детальные результаты:
-   ✅ УСПЕХ Базовый тест прокси (1250ms)
-   ✅ УСПЕХ Отладочный тест прокси (2100ms)
+📋 Detailed results:
+   ✅ SUCCESS Basic Proxy Test (1250ms)
+   ✅ SUCCESS Debug Proxy Test (2100ms)
    ...
 
-📂 Логи сохранены в папке logs/
+📂 Logs saved to logs/ folder
 ```
 
-## 🚀 Быстрый запуск
+## 🚀 Quick Launch
 
 ```bash
-# Все тесты одной командой (рекомендуется)
+# All tests with one command (recommended)
 npm test
 ```
 
 ---
 
-## Особенности
+## Features
 
-### 🗑️ Автоматическая очистка логов
-Все тесты автоматически очищают предыдущие `.log` файлы в папке `logs/` перед запуском для избежания путаницы при отладке.
+### 🗑️ Automatic Log Cleanup
+All tests automatically clean previous `.log` files in the `logs/` folder before running to avoid confusion during debugging.
 
-### 📁 Структура логов
+### 📁 Log Structure
 ```
 logs/
-├── proxy-basic-test.log    # Результаты основного теста
-├── proxy-debug-test.log    # Детальные отладочные логи
-└── app.log                 # Системные логи ProxyManager (автоматические)
+├── proxy-basic-test.log    # Main test results
+├── proxy-debug-test.log    # Detailed debug logs
+└── app.log                 # ProxyManager system logs (automatic)
 ```
 
-### ⚙️ Конфигурация ProxyManager
+### ⚙️ ProxyManager Configuration
 
-**Основные параметры:**
-- `healthCheckUrl` - URL для проверки работоспособности прокси
-- `healthCheckInterval` - Интервал проверки прокси (ms)
-- `maxTimeout` - Максимальный таймаут запроса (ms)
-- `changeProxyLoop` - Количество циклов смены прокси при неудаче
+**Main parameters:**
+- `healthCheckUrl` - URL for proxy health checking
+- `healthCheckInterval` - Proxy check interval (ms)
+- `maxTimeout` - Maximum request timeout (ms)
+- `changeProxyLoop` - Number of proxy change cycles on failure
 
-### 🎯 Цели тестирования
+### 🎯 Testing Goals
 
-1. **Функциональность** - проверка базовой работы с прокси
-2. **Стабильность** - тестирование обработки ошибок
-3. **Производительность** - измерение времени отклика
-4. **Логирование** - проверка корректности логов
+1. **Functionality** - checking basic proxy operations
+2. **Stability** - testing error handling
+3. **Performance** - measuring response time
+4. **Logging** - checking log correctness
 
-### 📝 Интерпретация результатов
+### 📝 Result Interpretation
 
-**Успешный тест:**
+**Successful test:**
 ```
 ✅ [URL] Status: 200, IP: xxx.xxx.xxx.xxx
 ```
 
-**Ошибка:**
+**Error:**
 ```
-❌ [URL] Error: описание ошибки
+❌ [URL] Error: error description
 ```
 
-**В отладочном режиме дополнительно:**
-- Временные метки начала/завершения
-- Длительность запроса в миллисекундах
-- Подробный стек ошибок
+**Additionally in debug mode:**
+- Start/completion timestamps
+- Request duration in milliseconds
+- Detailed error stack
 
-### 🔧 Отладка проблем
+### 🔧 Problem Debugging
 
-1. **Сначала запустите** `proxy-debug-test.js` для детального анализа
-2. **Проверьте логи** в `logs/proxy-debug-test.log`
-3. **Анализируйте** системные логи в `logs/app.log`
-4. **При необходимости** измените конфигурацию в тестов
+1. **First run** `proxy-debug-test.js` for detailed analysis
+2. **Check logs** in `logs/proxy-debug-test.log`
+3. **Analyze** system logs in `logs/app.log`
+4. **If needed** change test configuration
 
-### 🚦 Статусы тестов
+### 🚦 Test Statuses
 
-- **✅ Успех** - прокси работает, получен корректный ответ
-- **❌ Ошибка** - проблемы с прокси или сетью
-- **⏱️ Таймаут** - превышено время ожидания
-- **🔄 Повтор** - попытка использования другого прокси
+- **✅ Success** - proxy works, correct response received
+- **❌ Error** - proxy or network problems
+- **⏱️ Timeout** - timeout exceeded
+- **🔄 Retry** - attempt to use another proxy

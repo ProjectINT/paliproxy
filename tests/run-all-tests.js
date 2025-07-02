@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Управляющий файл для запуска всех тестов proxy-connection
- * Запускает все тесты последовательно и выводит общий отчет
+ * Master file for running all proxy-connection tests
+ * Runs all tests sequentially and outputs a comprehensive report
  */
 
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Цвета для консоли
+// Console colors
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -20,56 +20,56 @@ const colors = {
   cyan: '\x1b[36m'
 };
 
-// Список тестов для запуска
+// List of tests to run
 const tests = [
   {
-    name: 'Базовый тест прокси',
+    name: 'Basic Proxy Test',
     file: 'proxy-basic-test.js',
-    description: 'Основной тест функциональности ProxyManager'
+    description: 'Main ProxyManager functionality test'
   },
   {
-    name: 'Отладочный тест прокси',
+    name: 'Debug Proxy Test',
     file: 'proxy-debug-test.js',
-    description: 'Детальный отладочный тест с расширенным логированием'
+    description: 'Detailed debug test with extended logging'
   },
   {
-    name: 'Тест отказоустойчивости',
+    name: 'Failover Test',
     file: 'proxy-failover-test.js',
-    description: 'Тест переключения между прокси при сбоях'
+    description: 'Test switching between proxies on failures'
   },
   {
-    name: 'Тест отказоустойчивости с паролем',
+    name: 'Failover Test with Password',
     file: 'proxy-failover-password-test.js',
-    description: 'Тест переключения прокси с аутентификацией'
+    description: 'Test proxy switching with authentication'
   },
   {
-    name: 'Проверка здоровья прокси',
+    name: 'Proxy Health Check',
     file: 'health-check-test.js',
-    description: 'Тест системы мониторинга состояния прокси'
+    description: 'Test proxy health monitoring system'
   },
   {
-    name: 'Тест API запросов',
+    name: 'API Requests Test',
     file: 'request-api-test.js',
-    description: 'Тест fetch-like API для работы с запросами'
+    description: 'Test fetch-like API for requests'
   },
   {
-    name: 'Быстрый интеграционный тест',
+    name: 'Quick Integration Test',
     file: 'quick-integration-test.js',
-    description: 'Быстрая проверка основных компонентов'
+    description: 'Quick check of main components'
   },
   {
-    name: 'Тест пакета',
+    name: 'Package Test',
     file: 'test-package.js',
-    description: 'Тест установленного npm пакета'
+    description: 'Test installed npm package'
   },
   {
-    name: 'Тест TTS ReadableStream',
+    name: 'TTS ReadableStream Test',
     file: 'tts-readablestream-test.js',
-    description: 'Тест работы с потоковыми данными через прокси'
+    description: 'Test streaming data through proxy'
   }
 ];
 
-// Функция для очистки логов
+// Function to clean logs
 function cleanLogs() {
   const logsDir = path.join(__dirname, '..', 'logs');
   if (!fs.existsSync(logsDir)) {
@@ -81,25 +81,25 @@ function cleanLogs() {
     const filePath = path.join(logsDir, file);
     try {
       fs.unlinkSync(filePath);
-      console.log(`${colors.yellow}🗑️  Очищен лог: ${file}${colors.reset}`);
+      console.log(`${colors.yellow}🗑️  Cleaned log: ${file}${colors.reset}`);
     } catch (err) {
-      console.log(`${colors.red}❌ Не удалось удалить лог ${file}: ${err.message}${colors.reset}`);
+      console.log(`${colors.red}❌ Failed to delete log ${file}: ${err.message}${colors.reset}`);
     }
   });
 }
 
-// Функция для запуска отдельного теста
+// Function to run individual test
 function runTest(test) {
   const testPath = path.join(__dirname, test.file);
 
   if (!fs.existsSync(testPath)) {
-    console.log(`${colors.red}❌ Тест файл не найден: ${test.file}${colors.reset}`);
-    return { success: false, error: 'Файл не найден' };
+    console.log(`${colors.red}❌ Test file not found: ${test.file}${colors.reset}`);
+    return { success: false, error: 'File not found' };
   }
 
   console.log(`\n${colors.cyan}📋 ${test.name}${colors.reset}`);
   console.log(`${colors.blue}   ${test.description}${colors.reset}`);
-  console.log(`${colors.yellow}🔧 Запуск: ${test.file}${colors.reset}`);
+  console.log(`${colors.yellow}🔧 Running: ${test.file}${colors.reset}`);
 
   try {
     const startTime = Date.now();
@@ -109,45 +109,45 @@ function runTest(test) {
     });
     const duration = Date.now() - startTime;
 
-    console.log(`${colors.green}✅ Тест завершен успешно (${duration}ms)${colors.reset}`);
+    console.log(`${colors.green}✅ Test completed successfully (${duration}ms)${colors.reset}`);
     return { success: true, duration };
   } catch (error) {
-    console.log(`${colors.red}❌ Тест завершился с ошибкой${colors.reset}`);
+    console.log(`${colors.red}❌ Test failed with error${colors.reset}`);
     return { success: false, error: error.message };
   }
 }
 
-// Основная функция
+// Main function
 function main() {
   console.log(`${colors.bright}${colors.cyan}`);
   console.log('═══════════════════════════════════════════════════════════');
-  console.log('🚀 ЗАПУСК ВСЕХ ТЕСТОВ PROXY-CONNECTION');
+  console.log('🚀 RUNNING ALL PROXY-CONNECTION TESTS');
   console.log('═══════════════════════════════════════════════════════════');
   console.log(`${colors.reset}`);
 
-  // Проверка переменных окружения
-  console.log(`${colors.yellow}🔍 Проверка переменных окружения...${colors.reset}`);
+  // Check environment variables
+  console.log(`${colors.yellow}🔍 Checking environment variables...${colors.reset}`);
   const requiredEnvVars = ['PROXY_LIST_PATH', 'TEST_URLS'];
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
   if (missingVars.length > 0) {
-    console.log(`${colors.red}⚠️  Отсутствуют переменные окружения: ${missingVars.join(', ')}${colors.reset}`);
-    console.log(`${colors.yellow}💡 Убедитесь, что вы создали .env файл с необходимыми переменными${colors.reset}`);
-    console.log(`${colors.blue}📖 Подробности в README.md${colors.reset}`);
+    console.log(`${colors.red}⚠️  Missing environment variables: ${missingVars.join(', ')}${colors.reset}`);
+    console.log(`${colors.yellow}💡 Make sure you created .env file with required variables${colors.reset}`);
+    console.log(`${colors.blue}📖 Details in README.md${colors.reset}`);
   }
 
-  // Проверка списка прокси
+  // Check proxy list
   const proxyListPath = path.join(__dirname, '..', 'proxies-list.js');
   if (!fs.existsSync(proxyListPath)) {
-    console.log(`${colors.red}⚠️  Файл со списком прокси не найден: proxies-list.js${colors.reset}`);
-    console.log(`${colors.yellow}💡 Создайте файл с рабочими прокси для корректной работы тестов${colors.reset}`);
+    console.log(`${colors.red}⚠️  Proxy list file not found: proxies-list.js${colors.reset}`);
+    console.log(`${colors.yellow}💡 Create file with working proxies for tests to work correctly${colors.reset}`);
   }
 
-  console.log(`${colors.green}✅ Предварительная проверка завершена${colors.reset}\n`);
+  console.log(`${colors.green}✅ Preliminary check completed${colors.reset}\n`);
 
-  // Очистка логов
-  console.log(`${colors.yellow}🧹 Очистка предыдущих логов...${colors.reset}`);
-  cleanLogs();    // Запуск тестов
+  // Clean logs
+  console.log(`${colors.yellow}🧹 Cleaning previous logs...${colors.reset}`);
+  cleanLogs();  // Run tests
   const results = [];
   const startTime = Date.now();
 
@@ -155,33 +155,33 @@ function main() {
     const result = runTest(test);
     results.push({ test, result });
 
-    // Пауза между тестами
+    // Pause between tests
     if (test !== tests[tests.length - 1]) {
-      console.log(`${colors.blue}⏸️  Пауза 2 секунды...${colors.reset}`);
+      console.log(`${colors.blue}⏸️  Pause 2 seconds...${colors.reset}`);
       execSync('sleep 2');
     }
   }
 
-  // Отчет о результатах
+  // Results report
   const overallDuration = Date.now() - startTime;
   const successCount = results.filter(r => r.result.success).length;
   const failCount = results.length - successCount;
 
   console.log(`\n${colors.bright}${colors.cyan}`);
   console.log('═══════════════════════════════════════════════════════════');
-  console.log('📊 ОТЧЕТ О РЕЗУЛЬТАТАХ ТЕСТОВ');
+  console.log('📊 TEST RESULTS REPORT');
   console.log('═══════════════════════════════════════════════════════════');
   console.log(`${colors.reset}`);
 
-  console.log(`${colors.green}✅ Успешно: ${successCount}${colors.reset}`);
-  console.log(`${colors.red}❌ Неудачно: ${failCount}${colors.reset}`);
-  console.log(`${colors.blue}⏱️  Общее время: ${overallDuration}ms${colors.reset}`);
+  console.log(`${colors.green}✅ Successful: ${successCount}${colors.reset}`);
+  console.log(`${colors.red}❌ Failed: ${failCount}${colors.reset}`);
+  console.log(`${colors.blue}⏱️  Total time: ${overallDuration}ms${colors.reset}`);
 
-  console.log(`\n${colors.cyan}📋 Детальные результаты:${colors.reset}`);
+  console.log(`\n${colors.cyan}📋 Detailed results:${colors.reset}`);
   results.forEach(({ test, result }) => {
     const status = result.success ?
-      `${colors.green}✅ УСПЕХ${colors.reset}` :
-      `${colors.red}❌ ОШИБКА${colors.reset}`;
+      `${colors.green}✅ SUCCESS${colors.reset}` :
+      `${colors.red}❌ ERROR${colors.reset}`;
     const duration = result.duration ? ` (${result.duration}ms)` : '';
 
     console.log(`   ${status} ${test.name}${duration}`);
@@ -190,20 +190,20 @@ function main() {
     }
   });
 
-  console.log(`\n${colors.yellow}📂 Логи сохранены в папке logs/${colors.reset}`);
+  console.log(`\n${colors.yellow}📂 Logs saved to logs/ folder${colors.reset}`);
 
-  // Код выхода
+  // Exit code
   const exitCode = failCount > 0 ? 1 : 0;
   if (exitCode === 0) {
-    console.log(`\n${colors.green}🎉 Все тесты выполнены успешно!${colors.reset}`);
+    console.log(`\n${colors.green}🎉 All tests completed successfully!${colors.reset}`);
   } else {
-    console.log(`\n${colors.red}💥 Некоторые тесты завершились с ошибками${colors.reset}`);
+    console.log(`\n${colors.red}💥 Some tests failed with errors${colors.reset}`);
   }
 
   process.exit(exitCode);
 }
 
-// Запуск если файл вызван напрямую
+// Run if file is called directly
 if (require.main === module) {
   main();
 }
