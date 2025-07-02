@@ -8,5 +8,5 @@ export const defaultProxyMangerConfig = {
   maxTimeout: 5000,
   healthCheckUrl: HEALTH_CHECK_URL,
   healthCheckInterval: HEALTH_CHECK_INTERVAL,
-  timeout: TIMEOUT
+  changeProxyLoop: 2 // Number of proxy change loops. If 2, it means there will be 2 attempts for each proxy
 };

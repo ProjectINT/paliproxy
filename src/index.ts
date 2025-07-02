@@ -2,13 +2,14 @@
 import { testProxy } from './utils/testProxy';
 // import { proxiesList } from '../proxies-list';
 import { errorCodes, errorMessages } from './utils/errorCodes';
-import { logger as innerLogger, ISentryLogger } from './utils/logger/logger';
+import { logger as innerLogger, ISentryLogger } from './utils/logger';
 import { proxyRequest } from './utils/proxyRequest';
 import type { Breadcrumb } from '@sentry/core';
 
 import { defaultProxyMangerConfig } from '../constants';
 
 import { generateSnowflakeId } from './utils/snowflakeId/index';
+import { getNextProxy } from './utils/getNextProxy';
 
 const addBreadcrumb = (logger: ISentryLogger, { config, proxy, errorCode }: ExceptionData) => logger.addBreadcrumb({
   category: 'ProxyManager',
@@ -29,25 +30,7 @@ export class ProxyManager {
   private liveProxies: ProxyConfig[] = [];
   private run: boolean = false;
   private logger: ISentryLogger;
-  private readonly config: ProxyManagerConfig = {};
-  private exceptionHandlers = {
-    [errorCodes.REQUEST_FAILED]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
-      addBreadcrumb(this.logger, exceptionData);
-      this.logger.captureException(exceptionData.error);
-    },
-    [errorCodes.REQUEST_TIMEOUT]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
-      addBreadcrumb(this.logger, exceptionData);
-      this.logger.captureException(exceptionData.error);
-    },
-    [errorCodes.REQUEST_BODY_ERROR]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
-      addBreadcrumb(this.logger, exceptionData);
-      this.logger.captureException(exceptionData.error);
-    },
-    [errorCodes.UNKNOWN_ERROR]: (exceptionData: ExceptionData, attemptParams: AttemptParams) => {
-      addBreadcrumb(this.logger, exceptionData);
-      this.logger.captureException(exceptionData.error);
-    }
-  };
+  private readonly config: ProxyManagerConfig = { ...defaultProxyMangerConfig, sentryLogger: undefined };
   private readonly requestsStack: Map<string, RequestState> = new Map();
 
   constructor(proxies: ProxyBase[], { sentryLogger, config }: { sentryLogger?: ISentryLogger, config?: ProxyManagerConfig } = {}) {
@@ -87,11 +70,12 @@ export class ProxyManager {
 
     this.liveProxies = this.proxies.map(
       (proxy) => ({ ...proxy, alive: true, latency: 0 } as ProxyConfig)
-    ).filter(proxy => proxy.alive);
+    );
 
     this.config = Object.freeze({
       ...defaultProxyMangerConfig,
-      ...config
+      ...config,
+      sentryLogger: sentryLogger || innerLogger // Ensure sentryLogger is always present
     });
   }
 
@@ -103,18 +87,17 @@ export class ProxyManager {
     this.run = true;
     this.initLiveProxies();
     this.loopRangeProxies();
+    this.checkProxyManagerConfig();
 
     return this;
-  }
-
-  attemptsManager() {
-
   }
 
   loopRangeProxies(): void {
     setInterval(() => {
       if (this.run) {
-        this.rangeProxies();
+        this.rangeProxies().catch((err) => {
+          this.logger.captureException(err);
+        });
       }
     }, this.config.healthCheckInterval);
   }
@@ -122,7 +105,7 @@ export class ProxyManager {
   initLiveProxies(): void {
     this.liveProxies = this.proxies.map(
       (proxy) => ({ ...proxy, alive: true, latency: 0 } as ProxyConfig)
-    ).filter(proxy => proxy.alive);
+    );
   }
 
   async rangeProxies() {
@@ -147,42 +130,117 @@ export class ProxyManager {
     this.liveProxies = aliveRangedProxies;
   }
 
-  async runAttempt(attemptParams: AttemptParams): Promise<any> {
-    const { config, proxy } = attemptParams;
+  runAttempt(attemptParams: AttemptParams): Promise<ResponseData> {
+    const { requestConfig, proxy } = attemptParams;
 
-    return proxyRequest(config, proxy)
-      .catch((error) => {
-        if (this.exceptionHandlers[error.errorCode]) {
-          this.exceptionHandlers[error.errorCode]!(error, attemptParams);
-        } else {
-          this.exceptionHandlers[errorCodes.UNKNOWN_ERROR]!(error, attemptParams);
-        }
+    try {
+      return proxyRequest(requestConfig, proxy);
+    } catch (exceptionData: unknown) {
+      addBreadcrumb(this.logger, exceptionData as ExceptionData);
+      this.logger.captureException((exceptionData as ExceptionData).error);
+      const requestState = this.requestsStack.get(attemptParams.requestId);
+
+      if (!requestState) {
+        throw new Error('Request state not found');
+      }
+
+      const newAttempt: Attempt = {
+        proxy,
+        errorCode: (exceptionData as ExceptionData).errorCode || errorCodes.UNKNOWN_ERROR,
+        success: false,
+        ts: Date.now()
+      };
+
+      this.requestsStack.set(attemptParams.requestId, {
+        ...requestState,
+        attempts: [...requestState.attempts, newAttempt]
       });
+
+      return this.proxyLoop(requestConfig, attemptParams.requestId);
+    }
   }
 
-  async proxyRequestWithRetry(config: RequestConfig, requestId: string): Promise<any> {
-    const proxy = this.liveProxies[0];
+  async checkProxyManagerConfig(): Promise<void> {
+    if (!this.config || Object.keys(this.config).length === 0) {
+      const err = new Error('ProxyManager config is not defined');
+      this.logger.captureException(err);
+      throw err;
+    }
 
-    if (!proxy) {
+    if (!this.config.healthCheckUrl) {
+      const err = new Error('ProxyManager healthCheckUrl is not defined');
+      this.logger.captureException(err);
+      throw err;
+    }
+
+    if (this.config.maxTimeout <= 0) {
+      const err = new Error('ProxyManager maxTimeout must be greater than 0');
+      this.logger.captureException(err);
+      throw err;
+    }
+    if (this.proxies.length === 0) {
+      const err = new Error(errorMessages[errorCodes.NO_PROXIES]);
+      this.logger.captureException(err);
+      throw err;
+    }
+  }
+
+  async proxyLoop(requestConfig: RequestConfig, requestId: string): Promise<ResponseData> {
+    const requestState = this.requestsStack.get(requestId);
+    if (!requestState) {
+      const err = new Error('Request state not found');
+      this.logger.captureException(err);
+      throw err;
+    }
+    if (this.liveProxies.length === 0) {
       const err = new Error(errorMessages[errorCodes.NO_ALIVE_PROXIES]);
       this.logger.captureException(err);
       throw err;
     }
 
-    this.runAttempt({ config, proxy, requestId });
+    const proxy = getNextProxy({
+      requestState: this.requestsStack.get(requestId) as RequestState,
+      proxies: this.liveProxies,
+      config: this.config
+    });
+
+    if (!proxy) {
+      // this means that no proxies are available
+      // changeProxyLoop - config
+      // loops - requestState
+      const isNewLoopAvailable = this.requestsStack.get(requestId)?.loops as number < this.config.changeProxyLoop;
+
+      if (isNewLoopAvailable) {
+        this.requestsStack.set(requestId, {
+          ...requestState,
+          loops: (requestState?.loops || 0) + 1,
+          attempts: [] // reset attempts for new loop
+        });
+
+        return this.proxyLoop(requestConfig, requestId);
+      } else {
+        throw new Error(errorMessages[errorCodes.REQUEST_FAILED]);
+      }
+    }
+
+    return this.runAttempt({
+      requestConfig,
+      proxy,
+      requestId
+    });
   }
 
-  async request(config: RequestConfig) {
+  async request(requestConfig: RequestConfig) {
     const requestId = generateSnowflakeId();
 
     this.requestsStack.set(requestId, {
       retries: 0,
-      lastAttempt: Date.now(),
       success: false,
-      attempts: []
+      attempts: [],
+      loops: 0
     });
 
-    return this.proxyRequestWithRetry(config, requestId)
+    return this.proxyLoop(requestConfig, requestId)
       .catch((error) => {
         // unexpected error
         const requestState = this.requestsStack.get(requestId);
@@ -194,6 +252,7 @@ export class ProxyManager {
         if (requestState?.success === true) {
           this.requestsStack.delete(requestId);
         } else {
+          // else handle memory overflow
           this.logger.captureMessage('Proxy request failed', 'error');
           this.logger.setExtra('requestState', requestState);
           this.logger.captureException(new Error('All attempts failed'));

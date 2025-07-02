@@ -11,18 +11,20 @@ type RequestConfig = {
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: Record<string, string>;
-  body?: any;
+  body?: Object | Object[] | string;
 };
 
 type ProxyManagerConfig = {
-  onErrorRetries?: number;
-  onTimeoutRetries?: number;
-  maxTimeout?: number;
-  healthCheckUrl?: string;
-  healthCheckInterval?: number;
-  timeout?: number;
-  sentryLogger?: any;
+  onErrorRetries: number;
+  onTimeoutRetries: number;
+  maxTimeout: number;
+  healthCheckUrl: string;
+  healthCheckInterval: number;
+  sentryLogger: ISentryLogger; // TODO add type for Sentry logger
+  changeProxyLoop: number; // Number of attempts to change proxy in loop
 }
+
+type ConfigKey = keyof ProxyManagerConfig;
 
 type ProxyBase = Omit<ProxyConfig, 'alive' | 'latency'>;
 
@@ -36,17 +38,38 @@ type ExceptionData = {
   proxy: ProxyConfig;
 };
 
+type Attempt = {
+  proxy: ProxyConfig;
+  errorCode: ErrorCode | null;
+  success: boolean;
+  ts: number;
+}
+
 type RequestState = {
   retries: number;
-  lastAttempt: number;
   success: boolean;
-  attempts: AttemptParams[{
-    proxy: ProxyConfig;
-  }];
+  attempts: Attempt[];
+  loops: number;
 }
 
 type AttemptParams = {
-  config: RequestConfig;
+  requestConfig: RequestConfig;
   proxy: ProxyConfig;
   requestId: string;
 };
+
+type ErrorCodes = {
+  NO_PROXIES: string;
+  REQUEST_FAILED: string;
+  REQUEST_TIMEOUT: string;
+  REQUEST_BODY_ERROR: string;
+  UNKNOWN_ERROR: string;
+};
+
+type ErrorCode = keyof typeof errorCodes;
+
+type ResponseData = {
+    status: number | undefined; // TODO figure out why this is undefined sometimes
+    headers: http.IncomingHttpHeaders;
+    body: string;
+}

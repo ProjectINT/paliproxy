@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { logger } from './logger';
-import { readFileSync, existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { logger } from '.';
 
 // Test functionality to verify logs
 interface LogEntry {
@@ -33,6 +33,7 @@ function parseLogFile(logPath: string): LogEntry[] {
       const parsed = JSON.parse(entry.trim());
       logEntries.push(parsed);
     } catch (error) {
+      console.log('error', error);
       console.warn('Failed to parse log entry:', entry.substring(0, 100));
     }
   }

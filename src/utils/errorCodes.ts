@@ -15,3 +15,8 @@ export const errorMessages = {
   [errorCodes.REQUEST_BODY_ERROR]: 'Error writing request body, serialization failed',
   [errorCodes.UNKNOWN_ERROR]: 'Unknown error occurred'
 };
+
+export const errorCodesConfigMapping: Partial<Record<ErrorCode, ConfigKey>> = {
+  REQUEST_FAILED: 'onErrorRetries',
+  REQUEST_TIMEOUT: 'onTimeoutRetries'
+};
