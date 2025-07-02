@@ -34,10 +34,7 @@ async function testProxyFailoverWithBadPassword() {
 
   // Wait for health checks to complete
   console.log('⏳ Waiting for health checks to complete...');
-  await new Promise(resolve => setTimeout(resolve, 8000));
-
-  // Check live proxies
-  const liveProxies = manager.liveProxiesList;
+  const liveProxies = await manager.getLiveProxiesList();
   console.log(`🔍 Live proxies count: ${liveProxies.length}`);
 
   liveProxies.forEach((proxy, index) => {

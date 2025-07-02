@@ -80,9 +80,14 @@ export class ProxyManager {
 
     // Initialization logic
     this.run = true;
-    this.initLiveProxies();
-    this.loopRangeProxies();
     this.checkProxyManagerConfig();
+
+    // Run health check immediately, then start interval
+    this.rangeProxies().catch((err) => {
+      this.logger.captureException(err);
+    });
+
+    this.loopRangeProxies();
   }
 
   loopRangeProxies(): void {
@@ -96,9 +101,12 @@ export class ProxyManager {
   }
 
   initLiveProxies(): void {
-    this.liveProxies = this.proxies.map(
-      (proxy) => ({ ...proxy, alive: true, latency: 0 } as ProxyConfig)
-    );
+    // Only initialize if liveProxies is empty
+    if (this.liveProxies.length === 0) {
+      this.liveProxies = this.proxies.map(
+        (proxy) => ({ ...proxy, alive: true, latency: 0 } as ProxyConfig)
+      );
+    }
   }
 
   async rangeProxies() {
@@ -279,9 +287,18 @@ export class ProxyManager {
       });
   }
 
-  // Getter for testing purposes
-  get liveProxiesList(): ProxyConfig[] {
-    return [...this.liveProxies];
+  // Async getter for testing purposes - waits for health check to complete
+  async getLiveProxiesList(): Promise<ProxyConfig[]> {
+    // Wait for initial health check to complete
+    const liveProxies = await this.rangeProxies().catch((err) => {
+      this.logger.captureException(err);
+    }).then(() => this.liveProxies);
+    return liveProxies;
+  }
+
+  // Sync getter for internal use (returns current state)
+  get liveProxiesListSync(): ProxyConfig[] {
+    return this.liveProxies;
   }
 
   stop() {

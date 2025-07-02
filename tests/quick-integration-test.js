@@ -42,7 +42,7 @@ async function quickTest() {
 
     // Test 3: Check live proxies
     console.log('3️⃣ Checking proxy health...');
-    const liveCount = manager.liveProxiesList.length;
+    const liveCount = manager.liveProxiesListSync.length;
     console.log(`   ✅ SUCCESS: ${liveCount} live proxies available`);
 
     console.log('\n🎉 All tests passed! ProxyManager is working correctly.');

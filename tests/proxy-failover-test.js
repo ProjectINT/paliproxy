@@ -38,12 +38,9 @@ async function testProxyFailover() {
   });
   console.log();
 
-  // Wait a bit for health checks to complete
+  // Wait for health checks to complete and check live proxies
   console.log('⏳ Waiting for health checks to complete...');
-  await new Promise(resolve => setTimeout(resolve, 5000));
-
-  // Check that broken proxy is not in liveProxies
-  const liveProxies = manager.liveProxiesList;
+  const liveProxies = await manager.getLiveProxiesList();
   console.log(`🔍 Live proxies count: ${liveProxies.length}`);
 
   const expectedLiveCount = proxiesWithBadFirst.length - 1; // All except the broken one
