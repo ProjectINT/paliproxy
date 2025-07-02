@@ -1,4 +1,4 @@
-# palivpn
+# proxy-connection
 
 Модуль для управления пулом прокси с автоматическим health-check, балансировкой, логированием и поддержкой Dante.
 
@@ -16,13 +16,13 @@
 1. Установите пакет:
 
 ```sh
-npm install palivpn
+npm install proxy-connection
 ```
 
 2. Пример использования:
 
 ```typescript
-import { ProxyManager } from 'palivpn';
+import { ProxyManager } from 'proxy-connection';
 
 const proxies = [
   { ip: '1.2.3.4', port: 1080, user: 'user', pass: 'pass' },

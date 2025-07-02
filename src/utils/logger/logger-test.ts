@@ -189,7 +189,7 @@ async function demoLogger() {
   logger.setUser({
     id: 'demo-user',
     username: 'demo',
-    email: 'demo@palivpn.com'
+    email: 'demo@proxy-connection.com'
   });
 
   // Basic logging
