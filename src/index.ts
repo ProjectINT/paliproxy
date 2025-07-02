@@ -83,17 +83,17 @@ export class ProxyManager {
     this.checkProxyManagerConfig();
 
     // Run health check immediately, then start interval
-    this.rangeProxies().catch((err) => {
+    this.rankProxies().catch((err) => {
       this.logger.captureException(err);
     });
 
-    this.loopRangeProxies();
+    this.loopRankProxies();
   }
 
-  loopRangeProxies(): void {
+  loopRankProxies(): void {
     setInterval(() => {
       if (this.run) {
-        this.rangeProxies().catch((err) => {
+        this.rankProxies().catch((err) => {
           this.logger.captureException(err);
         });
       }
@@ -109,7 +109,7 @@ export class ProxyManager {
     }
   }
 
-  async rangeProxies() {
+  async rankProxies() {
     if (this.proxies.length === 0) {
 
       throw new Error(errorMessages[errorCodes.NO_PROXIES]);
@@ -122,13 +122,13 @@ export class ProxyManager {
 
     withLatency.sort((a, b) => a.latency - b.latency);
 
-    const aliveRangedProxies = withLatency.filter(proxy => proxy.alive);
+    const aliveRankedProxies = withLatency.filter(proxy => proxy.alive);
 
-    if (aliveRangedProxies.length === 0) {
+    if (aliveRankedProxies.length === 0) {
       throw new Error(errorMessages[errorCodes.NO_ALIVE_PROXIES]);
     }
 
-    this.liveProxies = aliveRangedProxies;
+    this.liveProxies = aliveRankedProxies;
   }
 
   async runAttempt(attemptParams: AttemptParams): Promise<ResponseData> {
@@ -290,7 +290,7 @@ export class ProxyManager {
   // Async getter for testing purposes - waits for health check to complete
   async getLiveProxiesList(): Promise<ProxyConfig[]> {
     // Wait for initial health check to complete
-    const liveProxies = await this.rangeProxies().catch((err) => {
+    const liveProxies = await this.rankProxies().catch((err) => {
       this.logger.captureException(err);
     }).then(() => this.liveProxies);
     return liveProxies;
