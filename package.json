@@ -13,10 +13,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/index.ts",
     "lint": "eslint . --ext .ts,.js",
     "lint:fix": "eslint . --ext .ts,.js --fix",
-    "format": "eslint . --ext .ts,.js --fix",
     "test": "node tests/run-all-tests.js"
   },
   "keywords": [
