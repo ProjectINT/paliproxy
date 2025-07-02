@@ -1,7 +1,7 @@
 {
-  "name": "palivpn",
+  "name": "proxy-manager",
   "version": "1.0.0",
-  "description": "VPN client with automatic connection management and health checking",
+  "description": "Proxy client with automatic connection management and health checking",
   "main": "src/index.ts",
   "types": "src/types.ts",
   "scripts": {
