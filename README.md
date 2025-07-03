@@ -191,8 +191,8 @@ const manager = new ProxyManager(proxies, {
 #### Proxy Management
 
 - **`changeProxyLoop`** (number, default: `2`)
-  - Number of attempts per proxy before moving to the next one
-  - If set to `2`, each proxy will be tried 2 times before switching
+  - Number of cicles of proxies before throw error
+  - If set to `2`, each proxy will be tried 2 times before error will be thrown
   - Affects the total number of attempts: `proxies.length × changeProxyLoop`
 
 ### Environment Variables
