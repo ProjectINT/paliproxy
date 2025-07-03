@@ -1,4 +1,3 @@
-
 # proxy-connection
 
 Module for managing a proxy pool with automatic health-check, balancing, logging, and Dante support.
@@ -123,6 +122,127 @@ const manager = new ProxyManager(proxies, {
     healthCheckInterval: 60000,
     // ... other config options
   }
+});
+```
+
+## Configuration
+
+The ProxyManager accepts a configuration object with various options to control proxy behavior, health checks, retries, and timeouts.
+
+### Complete Configuration Reference
+
+```typescript
+const manager = new ProxyManager(proxies, {
+  config: {
+    // Retry behavior
+    onErrorRetries: 0,           // Number of retries on error before switching proxy (default: 0)
+    onTimeoutRetries: 0,         // Number of retries on timeout before switching proxy (default: 0)
+    
+    // Timeouts
+    maxTimeout: 5000,            // Maximum request timeout in milliseconds (default: 5000)
+    
+    // Health check settings
+    healthCheckUrl: 'https://httpbin.org/ip',     // URL for proxy health checks (default: from env or 'https://httpbin.org/ip')
+    healthCheckInterval: 60000,   // Health check interval in milliseconds (default: 60000)
+    
+    // Proxy switching behavior
+    changeProxyLoop: 2,          // Number of proxy change loops - attempts per proxy (default: 2)
+  },
+  
+  // Logger options
+  sentryLogger: myLoggerInstance,  // Optional custom Sentry logger
+  disableLogging: false,           // Set to true to disable all logging (default: false)
+});
+```
+
+### Configuration Fields Explained
+
+#### Retry Settings
+
+- **`onErrorRetries`** (number, default: `0`)
+  - Number of retry attempts when a request fails with an error
+  - Set to `0` to immediately switch to next proxy on error
+  - Higher values will retry the same proxy before switching
+
+- **`onTimeoutRetries`** (number, default: `0`)
+  - Number of retry attempts when a request times out
+  - Set to `0` to immediately switch to next proxy on timeout
+  - Higher values will retry the same proxy before switching
+
+#### Timeout Settings
+
+- **`maxTimeout`** (number, default: `5000`)
+  - Maximum time in milliseconds to wait for a request to complete
+  - Applies to all requests made through the proxy
+  - Requests exceeding this timeout will be aborted
+
+#### Health Check Settings
+
+- **`healthCheckUrl`** (string, default: `process.env.HEALTH_CHECK_URL` or `'https://httpbin.org/ip'`)
+  - URL used to test proxy availability and latency
+  - Should be a reliable endpoint that responds quickly
+  - Used for automatic proxy health monitoring
+
+- **`healthCheckInterval`** (number, default: `60000`)
+  - Interval in milliseconds between automatic health checks
+  - Set to `0` to disable automatic health checks
+  - Lower values provide more up-to-date proxy status but increase network overhead
+
+#### Proxy Management
+
+- **`changeProxyLoop`** (number, default: `2`)
+  - Number of attempts per proxy before moving to the next one
+  - If set to `2`, each proxy will be tried 2 times before switching
+  - Affects the total number of attempts: `proxies.length × changeProxyLoop`
+
+### Environment Variables
+
+You can also configure some settings via environment variables:
+
+```bash
+# .env file
+HEALTH_CHECK_URL=https://httpbin.org/ip
+HEALTH_CHECK_INTERVAL=60000
+TIMEOUT=5000
+```
+
+### Configuration Examples
+
+#### High Availability Setup
+```typescript
+const manager = new ProxyManager(proxies, {
+  config: {
+    onErrorRetries: 2,           // Retry failed requests 2 times
+    onTimeoutRetries: 1,         // Retry timeouts once
+    maxTimeout: 10000,           // 10 second timeout
+    healthCheckInterval: 30000,  // Check proxies every 30 seconds
+    changeProxyLoop: 3,          // Try each proxy 3 times
+  }
+});
+```
+
+#### Fast Failover Setup
+```typescript
+const manager = new ProxyManager(proxies, {
+  config: {
+    onErrorRetries: 0,           // No retries, fast switching
+    onTimeoutRetries: 0,         // No timeout retries
+    maxTimeout: 3000,            // Short timeout
+    healthCheckInterval: 15000,  // Frequent health checks
+    changeProxyLoop: 1,          // Single attempt per proxy
+  }
+});
+```
+
+#### Performance Optimized Setup
+```typescript
+const manager = new ProxyManager(proxies, {
+  config: {
+    maxTimeout: 5000,
+    healthCheckInterval: 120000, // Less frequent health checks
+    changeProxyLoop: 2,
+  },
+  disableLogging: true,          // Disable logging for better performance
 });
 ```
 
