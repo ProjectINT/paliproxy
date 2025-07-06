@@ -122,7 +122,7 @@ export class ProxyManager {
     this.loopRankProxies();
   }
 
-  loopRankProxies(): void {
+  private loopRankProxies(): void {
     setInterval(() => {
       if (this.run) {
         this.rankProxies().catch((err) => {
@@ -132,7 +132,7 @@ export class ProxyManager {
     }, this.config.healthCheckInterval);
   }
 
-  initLiveProxies(): void {
+  private initLiveProxies(): void {
     // Only initialize if liveProxies is empty
     if (this.liveProxies.length === 0) {
       this.liveProxies = this.proxies.map(
@@ -141,7 +141,7 @@ export class ProxyManager {
     }
   }
 
-  async rankProxies() {
+  private async rankProxies() {
     if (this.proxies.length === 0) {
 
       throw new Error(errorMessages[errorCodes.NO_PROXIES]);
@@ -163,7 +163,7 @@ export class ProxyManager {
     this.liveProxies = aliveRankedProxies;
   }
 
-  async runAttempt(attemptParams: AttemptParams): Promise<ResponseData> {
+  private async runAttempt(attemptParams: AttemptParams): Promise<ResponseData> {
     const { requestConfig, proxy } = attemptParams;
 
     try {
@@ -221,7 +221,7 @@ export class ProxyManager {
     }
   }
 
-  async checkProxyManagerConfig(): Promise<void> {
+  private async checkProxyManagerConfig(): Promise<void> {
     if (!this.config || Object.keys(this.config).length === 0) {
       const err = new Error('ProxyManager config is not defined');
       this.logger.captureException(err);
@@ -246,7 +246,7 @@ export class ProxyManager {
     }
   }
 
-  async proxyLoop(requestConfig: RequestConfig, requestId: string): Promise<ResponseData> {
+  private async proxyLoop(requestConfig: RequestConfig, requestId: string): Promise<ResponseData> {
     const requestState = this.requestsStack.get(requestId);
     if (!requestState) {
       const err = new Error('Request state not found');
