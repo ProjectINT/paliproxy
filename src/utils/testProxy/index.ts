@@ -1,30 +1,34 @@
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import https from 'https';
+import { ClientRequest } from 'http';
 
-// Import ProxyBase type
 type ProxyBase = {
-    ip: string;
-    port: number;
-    user: string;
-    pass: string;
+  ip: string;
+  port: number;
+  user: string;
+  pass: string;
 };
 
 const HEALTH_CHECK_URL = process.env.HEALTH_CHECK_URL || 'https://httpbin.org/ip';
 const timeout = parseInt(process.env.TIMEOUT || '5000', 10);
 
 export const testProxy = async (proxy: ProxyBase): Promise<{ latency: number; alive: boolean }> => {
-  const agent = new SocksProxyAgent(`socks5://${proxy.user}:${proxy.pass}@${proxy.ip}:${proxy.port}`) as https.Agent;
+  const agent = new SocksProxyAgent(`socks5://${proxy.user}:${proxy.pass}@${proxy.ip}:${proxy.port}`);
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  let req: ClientRequest | null = null;
+
+  const timeoutId = setTimeout(() => {
+    controller.abort(); // сигнализируем отмену
+    req?.destroy(new Error('Request aborted by timeout'));
+  }, timeout);
 
   try {
     const startTime = Date.now();
 
     const response = await new Promise<{ statusCode: number }>((resolve, reject) => {
-      const req = https.get(HEALTH_CHECK_URL, {
-        agent,
-        timeout,
+      req = https.get(HEALTH_CHECK_URL, {
+        agent: agent as https.Agent,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
@@ -33,14 +37,9 @@ export const testProxy = async (proxy: ProxyBase): Promise<{ latency: number; al
       });
 
       req.on('error', reject);
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error('Request timed out'));
-      });
     });
 
     const latency = Date.now() - startTime;
-
     clearTimeout(timeoutId);
 
     return {
@@ -48,9 +47,8 @@ export const testProxy = async (proxy: ProxyBase): Promise<{ latency: number; al
       alive: response.statusCode >= 200 && response.statusCode < 300
     };
   } catch (error) {
-    // Only log errors if not suppressed for testing
     if (!process.env.SUPPRESS_PROXY_ERRORS) {
-      console.log('error', error); // TODO figure out with exception
+      console.log('Proxy error:', error);
     }
     clearTimeout(timeoutId);
     return {
