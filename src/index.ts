@@ -11,6 +11,38 @@ import { defaultProxyMangerConfig } from '../constants';
 import { generateSnowflakeId } from './utils/snowflakeId/index';
 import { getNextProxy } from './utils/getNextProxy';
 
+// Import and re-export all types
+import type {
+  ProxyConfig,
+  RequestConfig,
+  ProxyManagerConfig,
+  ProxyBase,
+  ResponseData,
+  ProxyManagerOptions,
+  AttemptParams,
+  ExceptionData,
+  RequestState,
+  Attempt
+} from './types';
+
+// Re-export all types for external consumption
+export type {
+  ProxyConfig,
+  RequestConfig,
+  ProxyManagerConfig,
+  ProxyBase,
+  ResponseData,
+  ProxyManagerOptions,
+  AttemptParams,
+  ExceptionData,
+  ErrorCodes,
+  ErrorCode,
+  RequestState,
+  Attempt,
+  ConfigKey,
+  NodeError
+} from './types';
+
 const addBreadcrumb = (logger: ISentryLogger, { config, proxy, errorCode }: ExceptionData) => logger.addBreadcrumb({
   category: 'ProxyManager',
   message: errorCode,

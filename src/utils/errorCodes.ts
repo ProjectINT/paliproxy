@@ -1,3 +1,5 @@
+import { ErrorCode, ConfigKey } from '../types.js';
+
 export const errorCodes = {
   NO_ALIVE_PROXIES: 'NO_ALIVE_PROXIES',
   NO_PROXIES: 'NO_PROXIES',

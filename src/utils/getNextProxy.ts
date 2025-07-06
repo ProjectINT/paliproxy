@@ -10,6 +10,13 @@
   6. Otherwise, selects the next proxy in the list that has not yet been tried for this request.
 */
 import { errorCodesConfigMapping } from './errorCodes';
+import type {
+  RequestState,
+  ProxyConfig,
+  ProxyManagerConfig,
+  ErrorCode,
+  Attempt
+} from '../types';
 
 type GetNextProxyArgs = {
   requestState: RequestState;
@@ -19,7 +26,8 @@ type GetNextProxyArgs = {
 
 const getRetriesByConfig = (errorCode: ErrorCode, config: ProxyManagerConfig) => {
   if (errorCodesConfigMapping[errorCode]) {
-    return config[errorCodesConfigMapping[errorCode]];
+    const configKey = errorCodesConfigMapping[errorCode] as keyof ProxyManagerConfig;
+    return config[configKey] as number;
   }
 
   return 0;
@@ -47,7 +55,7 @@ export const getNextProxy = ({ requestState, proxies, config }: GetNextProxyArgs
   const errorAttempts = attempts.reduceRight<Attempt[]>((acc, attempt, index, attempts) => {
     // we need this function to implement change proxy loop
     const previousIsUndefinedOrSame = () => {
-      attempts[index + 1]?.errorCode === lastErrorCode || attempts[index + 1] === undefined;
+      return attempts[index + 1]?.errorCode === lastErrorCode || attempts[index + 1] === undefined;
     };
 
     if (attempt.errorCode === lastErrorCode && previousIsUndefinedOrSame()) {

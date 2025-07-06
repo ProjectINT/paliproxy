@@ -3,6 +3,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import https from 'https';
 import http from 'http';
 import { errorCodes, errorMessages } from './errorCodes';
+import type { RequestConfig, ProxyConfig } from '../types';
 
 
 export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyConfig): Promise<Response> {
