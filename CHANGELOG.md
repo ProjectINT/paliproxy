@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-07-08
+
+### Added
+- **Full OpenAI SDK Integration**: ProxyManager now works as a drop-in replacement for fetch in OpenAI SDK
+- **Automatic Headers Conversion**: Seamless conversion between Headers objects and plain objects for fetch compatibility
+- **Auto-bound Methods**: `request` method is automatically bound in constructor, no need for manual `.bind()`
+- **Comprehensive OpenAI Documentation**: Added detailed integration examples for both English and Russian documentation
+
+### Enhanced
+- **Fetch API Compatibility**: Enhanced response object to be fully fetch-compatible with Headers support
+- **ProxyRequest Response**: Improved response handling with proper Headers object methods (get, has, entries, etc.)
+- **Error Handling**: Better error context preservation during proxy request failures
+
+### Testing
+- **OpenAI Integration Test**: Added comprehensive test for OpenAI SDK integration
+- **Headers Compatibility Test**: Validated automatic Headers conversion functionality
+- **Bind Context Test**: Verified auto-bound method behavior
+
+### Documentation
+- **OpenAI Integration Guide**: Complete integration examples with configuration recommendations
+- **Fetch Compatibility**: Updated documentation to reflect full fetch API compatibility
+- **Russian Translation**: Added Russian documentation for OpenAI integration
+
 ## [1.2.0] - 2025-07-03
 
 ### Added
