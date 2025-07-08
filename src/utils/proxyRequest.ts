@@ -58,12 +58,32 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
           }
         });
 
+        // Create Headers-like object compatible with fetch API
+        const createHeaders = (nodeHeaders: http.IncomingHttpHeaders) => {
+          const headersMap = new Map<string, string>();
+          for (const [key, value] of Object.entries(nodeHeaders)) {
+            if (value !== undefined) {
+              headersMap.set(key.toLowerCase(), Array.isArray(value) ? value.join(', ') : String(value));
+            }
+          }
+
+          return {
+            get: (name: string) => headersMap.get(name.toLowerCase()) || null,
+            has: (name: string) => headersMap.has(name.toLowerCase()),
+            entries: () => headersMap.entries(),
+            keys: () => headersMap.keys(),
+            values: () => headersMap.values(),
+            forEach: (callback: (value: string, key: string) => void) => headersMap.forEach(callback),
+            [Symbol.iterator]: () => headersMap.entries()
+          };
+        };
+
         // fetch-like Response imitation
         const response = {
           ok: res.statusCode ? res.statusCode >= 200 && res.statusCode < 300 : false,
           status: res.statusCode || 0,
           statusText: res.statusMessage || '',
-          headers: res.headers,
+          headers: createHeaders(res.headers),
           url,
           redirected: false,
           type: 'default' as const,

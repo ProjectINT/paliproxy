@@ -54,6 +54,7 @@
     "eslint": "^9.30.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-node": "^11.1.0",
+    "openai": "^5.8.2",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },

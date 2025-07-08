@@ -67,6 +67,11 @@ const integrationTests = [
     name: 'TTS ReadableStream Test',
     file: 'tts-readablestream-test.js',
     description: 'Test streaming data through proxy'
+  },
+  {
+    name: 'OpenAI Fetch Integration Test',
+    file: 'openai-fetch-integration-test.js',
+    description: 'Test OpenAI SDK with ProxyManager as fetch replacement'
   }
 ];
 

@@ -110,6 +110,9 @@ export class ProxyManager {
       ...config
     });
 
+    // Привязываем request к this для корректной работы как fetch
+    this.request = this.request.bind(this);
+
     // Initialization logic
     this.run = true;
     this.checkProxyManagerConfig();
@@ -294,11 +297,22 @@ export class ProxyManager {
   async request(url: string, options?: RequestConfig): Promise<ResponseData> {
     const requestId = generateSnowflakeId();
 
+    // Convert Headers object to plain object if needed (for OpenAI SDK compatibility)
+    let headers = options?.headers || {};
+    if (headers && typeof headers === 'object' && 'entries' in headers && typeof headers.entries === 'function') {
+      const plainHeaders: Record<string, string> = {};
+      const headersWithEntries = headers as unknown as { entries(): IterableIterator<[string, string]> };
+      for (const [key, value] of headersWithEntries.entries()) {
+        plainHeaders[key] = value;
+      }
+      headers = plainHeaders;
+    }
+
     // Merge url and options into a single RequestConfig object
     const requestConfig: RequestConfig = {
       url,
       method: options?.method || 'GET',
-      headers: options?.headers || {},
+      headers,
       ...(options?.body !== undefined && { body: options.body })
     };
 
