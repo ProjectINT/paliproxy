@@ -7,6 +7,15 @@ const { proxiesList } = require('../proxies-list');
 async function testProxyFailover() {
   console.log('🧪 Testing proxy failover mechanism...\n');
 
+  // Check if we have enough proxies for failover testing
+  if (proxiesList.length < 2) {
+    console.log('⚠️  Skipping failover test: Need at least 2 proxies in proxies-list.js');
+    console.log(`   Currently have: ${proxiesList.length} proxy(ies)`);
+    console.log('   To test failover functionality, add more proxies to proxies-list.js');
+    console.log('🎉 Test skipped successfully (expected with single proxy)');
+    return;
+  }
+
   // Create a copy of proxies and intentionally break the first one
   const proxiesWithBadFirst = [...proxiesList];
   const originalFirst = { ...proxiesWithBadFirst[0] };

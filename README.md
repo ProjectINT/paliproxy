@@ -352,13 +352,16 @@ npm test
 This command will sequentially run all available tests:
 - ✅ Basic proxy test
 - 🔍 Debug proxy test  
-- 🔄 Failover test
-- 🔐 Failover test with authentication
+- 🔄 Failover test (automatically skipped if only 1 proxy available)
+- 🔐 Failover test with authentication (automatically skipped if only 1 proxy available)
 - 💓 Proxy health check
 - 🌐 API requests test
 - ⚡ Quick integration test
 - 📦 Package test
 - 🎵 TTS ReadableStream test
+
+**Note about Failover Tests:**
+The failover tests require at least 2 proxies to test proxy switching functionality. If your `proxies-list.js` contains only 1 proxy, these tests will be automatically skipped with a clear message. This is expected behavior and not an error.
 
 ### Individual test execution
 

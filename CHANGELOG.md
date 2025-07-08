@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2025-07-08
+
+### Fixed
+- **Failover Tests**: Added intelligent skipping for failover tests when only one proxy is available
+- **Test Documentation**: Enhanced documentation to explain failover test behavior with single proxy configuration
+
+### Enhanced
+- **Test Robustness**: Failover tests now gracefully handle single-proxy configurations instead of failing
+- **User Experience**: Clear messaging when failover tests are skipped due to insufficient proxy count
+- **Documentation**: Added notes about failover test requirements in README.md
+
+### Testing
+- **Intelligent Test Skipping**: Failover tests automatically skip with informative messages when < 2 proxies available
+- **Better Test Feedback**: Users now understand why certain tests are skipped in single-proxy setups
+
 ## [1.5.0] - 2025-07-08
 
 ### Added
