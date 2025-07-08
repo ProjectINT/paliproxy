@@ -110,9 +110,6 @@ export class ProxyManager {
       ...config
     });
 
-    // Привязываем request к this для корректной работы как fetch
-    this.request = this.request.bind(this);
-
     // Initialization logic
     this.run = true;
     this.checkProxyManagerConfig();
@@ -122,7 +119,13 @@ export class ProxyManager {
       this.logger.captureException(err);
     });
 
+    this.initLiveProxies();
     this.loopRankProxies();
+    this.bindRequest();
+  }
+
+  private bindRequest() {
+    this.request = this.request.bind(this);
   }
 
   private loopRankProxies(): void {

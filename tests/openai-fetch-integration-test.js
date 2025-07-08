@@ -12,7 +12,7 @@ const manager = new ProxyManager(proxiesList);
 // Create OpenAI client with our proxy fetch - теперь Headers обрабатываются автоматически!
 const openai = new OpenAI({
   apiKey: process.env.CHAT_GPT_API_KEY,
-  fetch: manager.request.bind(manager)
+  fetch: manager.request
 });
 
 async function test() {
