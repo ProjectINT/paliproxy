@@ -85,6 +85,76 @@ The response object supports the same methods as fetch:
 - `response.status` - HTTP status code
 - `response.statusText` - HTTP status message
 
+### OpenAI SDK Integration
+
+ProxyManager can be used as a drop-in replacement for fetch in OpenAI SDK. The manager automatically handles Headers conversion and maintains full fetch API compatibility:
+
+```typescript
+import OpenAI from 'openai';
+import { ProxyManager } from 'proxy-connection';
+
+const manager = new ProxyManager(proxies, {
+  config: {
+    healthCheckUrl: 'https://httpbin.org/ip',
+    maxTimeout: 30000, // OpenAI requests can take longer
+    changeProxyLoop: 3,
+  }
+});
+
+// Use ProxyManager as fetch replacement in OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  fetch: manager.request // No .bind() needed - auto-bound
+});
+
+// All OpenAI SDK methods now work through your proxy pool
+const completion = await openai.chat.completions.create({
+  model: "gpt-3.5-turbo",
+  messages: [{ role: "user", content: "Hello!" }],
+});
+
+const models = await openai.models.list();
+const embeddings = await openai.embeddings.create({
+  model: "text-embedding-ada-002",
+  input: "Your text here",
+});
+```
+
+#### Key Features for OpenAI Integration:
+
+- **Automatic Headers Conversion**: ProxyManager automatically converts OpenAI SDK's Headers objects to plain objects
+- **Full Fetch Compatibility**: Supports all fetch API features used by OpenAI SDK
+- **Auto-bound Methods**: No need for `.bind(manager)` - the request method is automatically bound in constructor
+- **Error Handling**: Proxy failures are handled transparently with automatic fallback to other proxies
+- **Request Logging**: All OpenAI requests are logged (when logging is enabled) for debugging
+
+#### Alternative Usage (with explicit binding):
+
+If you prefer explicit binding or are using an older version:
+
+```typescript
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  fetch: manager.request.bind(manager) // Explicit binding
+});
+```
+
+#### Configuration for OpenAI:
+
+Recommended configuration for OpenAI API requests:
+
+```typescript
+const manager = new ProxyManager(proxies, {
+  config: {
+    maxTimeout: 60000,           // OpenAI requests can take up to 60 seconds
+    healthCheckInterval: 120000, // Check proxies every 2 minutes
+    changeProxyLoop: 2,          // Try each proxy twice before giving up
+    onErrorRetries: 1,           // Retry once on network errors
+    onTimeoutRetries: 0,         // Don't retry timeouts (switch proxy immediately)
+  }
+});
+```
+
 ## Dante
 
 - The `dante/` folder contains scripts and instructions for automatic socks5 proxy setup via Dante.

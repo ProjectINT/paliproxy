@@ -85,6 +85,76 @@ const response = await manager.request(url, options);
 - `response.status` - HTTP код статуса
 - `response.statusText` - HTTP сообщение статуса
 
+### Интеграция с OpenAI SDK
+
+ProxyManager может использоваться как прямая замена fetch в OpenAI SDK. Менеджер автоматически обрабатывает конвертацию Headers и поддерживает полную совместимость с fetch API:
+
+```typescript
+import OpenAI from 'openai';
+import { ProxyManager } from 'proxy-connection';
+
+const manager = new ProxyManager(proxies, {
+  config: {
+    healthCheckUrl: 'https://httpbin.org/ip',
+    maxTimeout: 30000, // OpenAI запросы могут занимать больше времени
+    changeProxyLoop: 3,
+  }
+});
+
+// Используем ProxyManager как замену fetch в OpenAI клиенте
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  fetch: manager.request // .bind() не нужен
+});
+
+// Все методы OpenAI SDK теперь работают через ваш пул прокси
+const completion = await openai.chat.completions.create({
+  model: "gpt-3.5-turbo",
+  messages: [{ role: "user", content: "Привет!" }],
+});
+
+const models = await openai.models.list();
+const embeddings = await openai.embeddings.create({
+  model: "text-embedding-ada-002",
+  input: "Ваш текст здесь",
+});
+```
+
+#### Ключевые особенности для интеграции с OpenAI:
+
+- **Автоматическая конвертация Headers**: ProxyManager автоматически конвертирует Headers-объекты OpenAI SDK в обычные объекты
+- **Полная совместимость с Fetch**: Поддерживает все возможности fetch API, используемые OpenAI SDK
+- **Автопривязанные методы**: Не нужен `.bind(manager)` - метод request автоматически привязан в конструкторе
+- **Обработка ошибок**: Сбои прокси обрабатываются прозрачно с автоматическим переключением на другие прокси
+- **Логирование запросов**: Все OpenAI запросы логируются (когда логирование включено) для отладки
+
+#### Альтернативное использование (с явной привязкой):
+
+Если вы предпочитаете явную привязку или используете старую версию:
+
+```typescript
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  fetch: manager.request.bind(manager) // Явная привязка
+});
+```
+
+#### Конфигурация для OpenAI:
+
+Рекомендуемая конфигурация для запросов к OpenAI API:
+
+```typescript
+const manager = new ProxyManager(proxies, {
+  config: {
+    maxTimeout: 60000,           // OpenAI запросы могут занимать до 60 секунд
+    healthCheckInterval: 120000, // Проверять прокси каждые 2 минуты
+    changeProxyLoop: 2,          // Пробовать каждый прокси дважды перед отказом
+    onErrorRetries: 1,           // Повторить один раз при сетевых ошибках
+    onTimeoutRetries: 0,         // Не повторять таймауты (сразу переключать прокси)
+  }
+});
+```
+
 ## Dante
 
 - Папка `dante/` содержит скрипты и инструкции для автоматической настройки socks5-прокси через Dante.
