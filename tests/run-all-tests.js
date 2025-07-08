@@ -72,6 +72,11 @@ const integrationTests = [
     name: 'OpenAI Fetch Integration Test',
     file: 'openai-fetch-integration-test.js',
     description: 'Test OpenAI SDK with ProxyManager as fetch replacement'
+  },
+  {
+    name: 'OpenAI Whisper FormData Test',
+    file: 'openai-whisper-formdata-test.js',
+    description: 'Test FormData handling with OpenAI Whisper API for audio transcription'
   }
 ];
 

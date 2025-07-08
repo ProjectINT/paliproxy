@@ -2,6 +2,7 @@
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import https from 'https';
 import http from 'http';
+import FormDataNode from 'form-data';
 import { errorCodes, errorMessages } from './errorCodes';
 import type { RequestConfig, ProxyConfig } from '../types';
 
@@ -23,10 +24,80 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
   const agent = new SocksProxyAgent(`socks5://${proxy.user}:${proxy.pass}@${proxy.ip}:${proxy.port}`) as unknown as (http.Agent | https.Agent);
   const lib = isHttps ? https : http;
 
+  // Handle FormData body
+  let requestBody: string | Buffer | undefined;
+  const requestHeaders = { ...headers };
+
+  if (body instanceof FormData) {
+    // For FormData, we need to convert it to a format that can be sent via HTTP
+    try {
+      const formDataNode = new FormDataNode();
+      let hasFiles = false;
+
+      for (const [key, value] of body.entries()) {
+        if (value instanceof File || (value && typeof value === 'object' && value.constructor.name === 'File')) {
+          hasFiles = true;
+          // Convert File to Buffer for form-data
+          const fileBuffer = Buffer.from(await (value as File).arrayBuffer());
+          formDataNode.append(key, fileBuffer, {
+            filename: (value as File).name,
+            contentType: (value as File).type || 'application/octet-stream'
+          });
+        } else {
+          formDataNode.append(key, String(value));
+        }
+      }
+
+      if (hasFiles) {
+        // Use multipart/form-data for file uploads
+        requestBody = formDataNode.getBuffer();
+        const formHeaders = formDataNode.getHeaders();
+        Object.assign(requestHeaders, formHeaders);
+      } else {
+        // For simple form data, convert to application/x-www-form-urlencoded
+        const params = new URLSearchParams();
+        for (const [key, value] of body.entries()) {
+          params.append(key, String(value));
+        }
+        requestBody = params.toString();
+        requestHeaders['content-type'] = 'application/x-www-form-urlencoded';
+      }
+
+      if (requestBody) {
+        requestHeaders['content-length'] = Buffer.byteLength(requestBody).toString();
+      }
+    } catch (error) {
+      throw {
+        message: 'FormData processing error',
+        errorCode: errorCodes.REQUEST_BODY_ERROR,
+        error: error,
+        config: requestConfig,
+        proxy
+      };
+    }
+  } else if (body) {
+    // Handle other body types
+    if (typeof body === 'string') {
+      requestBody = body;
+    } else if (Buffer.isBuffer(body)) {
+      requestBody = body;
+    } else {
+      // Assume it's an object that needs JSON stringifying
+      requestBody = JSON.stringify(body);
+      if (!requestHeaders['content-type']) {
+        requestHeaders['content-type'] = 'application/json';
+      }
+    }
+
+    if (requestBody && !requestHeaders['content-length']) {
+      requestHeaders['content-length'] = Buffer.byteLength(requestBody).toString();
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const req = lib.request(url, {
       method,
-      headers,
+      headers: requestHeaders,
       agent
     }, (res) => {
       let data = '';
@@ -186,9 +257,9 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
       });
     });
 
-    if (body) {
+    if (requestBody) {
       try {
-        req.write(typeof body === 'string' ? body : JSON.stringify(body));
+        req.write(requestBody);
       } catch (err) {
         reject({
           message: errorMessages[errorCodes.REQUEST_BODY_ERROR],

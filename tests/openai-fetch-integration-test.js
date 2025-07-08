@@ -27,8 +27,15 @@ async function test() {
     console.log('🎉 ProxyManager works as fetch replacement in OpenAI SDK');
     console.log('🔑 Headers are now automatically converted from Headers object to plain object');
 
+    // Stop ProxyManager to prevent hanging
+    manager.stop();
+    process.exit(0);
+
   } catch (error) {
     console.log('❌ Error:', error.message);
+
+    // Stop ProxyManager to prevent hanging
+    manager.stop();
     process.exit(1);
   }
 }
