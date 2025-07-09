@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2025-07-09
+
+### Fixed
+- **Logger Lazy Initialization**: Fixed ENOENT error when logger module is imported but not used
+- **Logger Architecture**: Changed logger exports to classes instead of instances to prevent unwanted initialization
+- **File System Dependencies**: Logger now only creates logs directory when actually instantiated and used
+
+### Enhanced
+- **Import Safety**: Logger module can now be safely imported without side effects
+- **Memory Efficiency**: Logger instances are only created when explicitly needed
+- **TypeScript Types**: Improved type safety in logger test files
+
+### Breaking Changes
+- **Logger Import**: Logger is now exported as classes (`FileLogger`, `NullLogger`) instead of instances
+- **Usage Update**: Must instantiate logger with `new FileLogger()` instead of importing instance
+
+### Migration Guide
+```typescript
+// Old way (no longer works)
+import { logger, nullLogger } from './utils/logger';
+
+// New way
+import { FileLogger, NullLogger } from './utils/logger';
+const logger = new FileLogger();
+const nullLogger = new NullLogger();
+```
+
 ## [1.5.1] - 2025-07-08
 
 ### Fixed
