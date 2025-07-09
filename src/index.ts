@@ -2,7 +2,7 @@
 import { testProxy } from './utils/testProxy';
 // import { proxiesList } from '../proxies-list';
 import { errorCodes, errorMessages } from './utils/errorCodes';
-import { logger as innerLogger, nullLogger, ISentryLogger } from './utils/logger';
+import { FileLogger, NullLogger, ISentryLogger } from './utils/logger';
 import { proxyRequest } from './utils/proxyRequest';
 import type { Breadcrumb } from '@sentry/core';
 
@@ -68,7 +68,9 @@ export class ProxyManager {
   constructor(proxies: ProxyBase[], options: ProxyManagerOptions = {}) {
     const { sentryLogger, config, disableLogging = false } = options;
     // Initialize logger with application tags
-    this.logger = disableLogging ? nullLogger : (sentryLogger as ISentryLogger || innerLogger);
+    this.logger = disableLogging
+      ? new NullLogger()
+      : (sentryLogger as ISentryLogger || new FileLogger());
 
     this.logger.addBreadcrumb({
       category: 'ProxyManager',

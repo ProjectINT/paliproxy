@@ -42,8 +42,12 @@ class FileLogger implements ISentryLogger {
   }
 
   private ensureLogDir(): void {
-    if (!existsSync(this.logsDir)) {
-      mkdirSync(this.logsDir, { recursive: true });
+    try {
+      if (!existsSync(this.logsDir)) {
+        mkdirSync(this.logsDir, { recursive: true });
+      }
+    } catch (error) {
+      console.error('Failed to create logs directory:', error);
     }
   }
 
@@ -205,18 +209,4 @@ class NullLogger implements ISentryLogger {
   }
 }
 
-export function createLogger(): ISentryLogger {
-  return new FileLogger();
-}
-
-export function createNullLogger(): ISentryLogger {
-  return new NullLogger();
-}
-
-// Default logger instance
-export const logger = createLogger();
-
-// Null logger instance for when logging should be disabled
-export const nullLogger = createNullLogger();
-
-export default logger;
+export { FileLogger, NullLogger };

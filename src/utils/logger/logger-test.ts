@@ -2,19 +2,21 @@
 
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { logger } from '.';
+import { FileLogger } from '.';
+
+const logger = new FileLogger();
 
 // Test functionality to verify logs
 interface LogEntry {
     timestamp: string;
     level: string;
     message: string;
-    user?: any;
-    tags?: any;
-    extras?: any;
-    contexts?: any;
-    breadcrumbs?: any;
-    data?: any;
+    user?: unknown;
+    tags?: Record<string, string>;
+    extras?: Record<string, unknown>;
+    contexts?: Record<string, unknown>;
+    breadcrumbs?: unknown[];
+    data?: unknown;
 }
 
 function parseLogFile(logPath: string): LogEntry[] {
@@ -59,7 +61,12 @@ function runTests(logEntries: LogEntry[]): void {
 
   // Test 2: Check if user information is set
   testsTotal++;
-  const entriesWithUser = logEntries.filter(entry => entry.user && entry.user.id === 'demo-user');
+  const entriesWithUser = logEntries.filter(entry =>
+    entry.user &&
+    typeof entry.user === 'object' &&
+    'id' in entry.user &&
+    entry.user.id === 'demo-user'
+  );
   if (entriesWithUser.length > 0) {
     console.log(`✅ Test 2: User information found in ${entriesWithUser.length} entries`);
     testsPassed++;
@@ -97,7 +104,10 @@ function runTests(logEntries: LogEntry[]): void {
   testsTotal++;
   const exceptionEntries = logEntries.filter(entry =>
     entry.message.includes('Exception:') ||
-        (entry.data && entry.data.name && entry.data.stack)
+    (entry.data &&
+     typeof entry.data === 'object' &&
+     'name' in entry.data &&
+     'stack' in entry.data)
   );
   if (exceptionEntries.length > 0) {
     console.log(`✅ Test 5: Exception logging found in ${exceptionEntries.length} entries`);
@@ -163,8 +173,9 @@ function runTests(logEntries: LogEntry[]): void {
     console.log(`  Level: ${entry.level}`);
     console.log(`  Message: ${entry.message}`);
     console.log(`  Timestamp: ${entry.timestamp}`);
-    if (entry.user) {
-      console.log(`  User: ${entry.user.username} (${entry.user.id})`);
+    if (entry.user && typeof entry.user === 'object') {
+      const user = entry.user as Record<string, unknown>;
+      console.log(`  User: ${user.username || 'N/A'} (${user.id || 'N/A'})`);
     }
     if (entry.tags) {
       console.log(`  Tags: ${JSON.stringify(entry.tags)}`);
