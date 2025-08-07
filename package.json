@@ -1,6 +1,6 @@
 {
   "name": "proxy-connection",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Proxy client with automatic connection management, health checking, and fetch-like API",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
