@@ -134,11 +134,19 @@ export class ProxyManager {
   }
 
   private loopRankProxies(): void {
-    setInterval(() => {
+    const interval = setInterval(() => {
       if (this.run) {
-        this.rankProxies().catch((err) => {
-          this.logger.captureException(err);
-        });
+        try {
+          this.rankProxies().catch((err) => {
+            this.logger.captureException(err);
+          });
+        } catch (error) {
+          this.logger.captureException(error as Error);
+        }
+        this.logger.captureMessage('Proxies ranked', 'info');
+      } else {
+        clearInterval(interval);
+        this.logger.captureMessage('ProxyManager stopped', 'info');
       }
     }, this.config.healthCheckInterval);
   }
