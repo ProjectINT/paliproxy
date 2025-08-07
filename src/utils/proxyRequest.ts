@@ -235,6 +235,7 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
         };
 
         resolve(response as unknown as Response);
+        agent.destroy();
       });
     });
 
@@ -245,6 +246,7 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
         error: err,
         proxy
       });
+      agent.destroy();
     });
 
     req.setTimeout(10000, () => {
@@ -255,6 +257,7 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
         error: new Error('Request timed out'),
         proxy
       });
+      agent.destroy();
     });
 
     if (requestBody) {
@@ -267,6 +270,7 @@ export async function proxyRequest(requestConfig: RequestConfig, proxy: ProxyCon
           error: err,
           proxy
         });
+        agent.destroy();
       }
     }
 
