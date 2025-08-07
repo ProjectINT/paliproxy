@@ -43,6 +43,9 @@ export type {
   NodeError
 } from './types';
 
+// Export utility functions
+export { testProxy } from './utils/testProxy';
+
 const addBreadcrumb = (logger: ISentryLogger, { config, proxy, errorCode }: ExceptionData) => logger.addBreadcrumb({
   category: 'ProxyManager',
   message: errorCode,

@@ -2,7 +2,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import https from 'https';
 import { ClientRequest } from 'http';
 
-type ProxyBase = {
+export type ProxyBase = {
   ip: string;
   port: number;
   user: string;
